@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>DCA Or — EUR/XAU</title>
+<meta name="theme-color" content="#0c0a09" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="DCA Or" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<style>
+  :root{
+    --bg:#0c0a09; --panel:#1c1917; --surface:rgba(28,25,23,0.5); --line:#292524;
+    --text:#f5f5f4; --muted:#78716c; --sub:#57534e; --gold:#f59e0b; --gold-dim:#b45309;
+    --accent:#fcd34d; --gain:#34d399; --loss:#f87171;
+    --header-bg:rgba(12,10,9,.95); --nav-bg:rgba(12,10,9,.97);
+  }
+  body.light{
+    --bg:#f7f4ee; --panel:#ffffff; --surface:rgba(255,255,255,0.8); --line:#e6dfd0;
+    --text:#1c1917; --muted:#8a8478; --sub:#a89f8e; --gold:#b45309; --gold-dim:#92400e;
+    --accent:#92400e; --gain:#047857; --loss:#dc2626;
+    --header-bg:rgba(247,244,238,.95); --nav-bg:rgba(247,244,238,.97);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-tap-highlight-color:transparent; padding-bottom:env(safe-area-inset-bottom); transition:background .2s,color .2s;}
+  .serif{font-family:Georgia,"Times New Roman",serif;}
+  header{position:sticky;top:0;z-index:10;background:var(--header-bg);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); padding:calc(env(safe-area-inset-top) + 18px) 20px 16px;}
+  .row{display:flex;align-items:center;justify-content:space-between;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .badge{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#b45309);
+    display:flex;align-items:center;justify-content:center;font-weight:700;color:#0c0a09;font-size:14px;flex-shrink:0;}
+  .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0;}
+  .brand{font-size:18px;margin:0;color:var(--accent);}
+  .header-actions{display:flex;align-items:center;gap:8px;}
+  button.icon{background:var(--panel);border:1px solid var(--line);color:var(--gold);border-radius:999px;
+    width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  button.icon svg{width:16px;height:16px;}
+  .spin{animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .price-block{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;}
+  .price-big{font-size:30px;color:var(--accent);margin:0;}
+  .price-big small{font-size:13px;color:var(--muted);font-family:sans-serif;}
+  .price-sub{font-size:12px;color:var(--muted);margin:2px 0 0;}
+  .update-time{font-size:11px;color:var(--sub);}
+  .err{margin-top:10px;font-size:12px;color:var(--loss);background:#7f1d1d22;border:1px solid #7f1d1d;
+    border-radius:10px;padding:8px 10px;}
+  main{padding:18px 20px 100px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .card{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:14px;}
+  .card.hl{border-color:#78350f99;background:#78350f22;}
+  .card .lbl{font-size:11px;color:var(--muted);margin:0;}
+  .card .val{font-size:18px;margin:3px 0 0;}
+  .card.hl .val{color:var(--accent);}
+  .gainbox{border-radius:16px;padding:16px;margin-top:12px;border:1px solid;}
+  .gainbox.up{border-color:#065f46;background:#05966922;}
+  .gainbox.down{border-color:#7f1d1d;background:#7f1d1d22;}
+  .gainbox .amt{font-size:26px;margin:2px 0 0;}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;font-size:14px;font-weight:600;}
+  .pill.up{background:#065f4655;color:#6ee7b7;}
+  .pill.down{background:#7f1d1d55;color:#fca5a5;}
+  .panel{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:14px;margin-top:12px;}
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--muted);margin-top:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+  h2.sec{font-size:20px;margin:0 0 14px;color:var(--accent);}
+  label.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;font-size:12px;color:var(--muted);}
+  input{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);
+    font-size:15px;outline:none;}
+  input:focus{border-color:var(--gold-dim);}
+  .btn{width:100%;background:var(--gold);color:#0c0a09;border:none;border-radius:12px;padding:13px;
+    font-size:15px;font-weight:600;}
+  .btn:active{transform:scale(.98);}
+  .btn.ghost{background:transparent;border:1px solid var(--gold-dim);color:var(--gold);margin-top:8px;}
+  .hist-item{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);
+    background:var(--surface);border-radius:16px;padding:12px 14px;margin-bottom:8px;}
+  .hist-item .d{font-size:14px;}
+  .hist-item .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+  .hist-item .amt{font-family:Georgia,serif;color:var(--accent);}
+  .del{background:none;border:none;color:var(--sub);padding:6px;}
+  .empty{text-align:center;color:var(--muted);font-size:13px;margin-top:60px;padding:0 30px;}
+  .progress-track{height:12px;border-radius:999px;background:var(--line);overflow:hidden;margin:10px 0;}
+  .progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#b45309,#fbbf24);}
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
+  .navbtn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);
+    padding:6px 14px;border-radius:12px;}
+  .navbtn.active{color:var(--gold);}
+  .navbtn svg{width:20px;height:20px;}
+  .navbtn span{font-size:10px;}
+  #chart-wrap{width:100%;height:190px;position:relative;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <div class="logo">
+      <div class="badge">Au</div>
+      <div>
+        <p class="eyebrow">DCA</p>
+        <p class="brand serif">EUR / XAU</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon" id="theme-btn" aria-label="Changer de thème"></button>
+      <button class="icon" id="refresh-btn" aria-label="Rafraîchir le cours">
+        <svg id="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="price-block">
+    <div>
+      <p class="price-sub">Cours de l'or (spot)</p>
+      <p class="price-big serif" id="price-gram">—<small> /g</small></p>
+      <p class="price-sub" id="price-oz"></p>
+    </div>
+    <p class="update-time" id="update-time"></p>
+  </div>
+  <div id="price-err"></div>
+</header>
+
+<main id="content"></main>
+
+<nav>
+  <button class="navbtn active" data-tab="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+    <span>Tableau</span>
+  </button>
+  <button class="navbtn" data-tab="add">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span>Ajouter</span>
+  </button>
+  <button class="navbtn" data-tab="history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+    <span>Historique</span>
+  </button>
+  <button class="navbtn" data-tab="goal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    <span>Objectif</span>
+  </button>
+</nav>
+
+<script>
+const OZ_TO_GRAM = 31.1034768;
+const fmtEUR = n => (n==null||isNaN(n)) ? "—" : n.toLocaleString("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
+const fmtG = n => (n==null||isNaN(n)) ? "—" : n.toLocaleString("fr-FR",{maximumFractionDigits:3}) + " g";
+const fmtDate = d => new Date(d).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"2-digit"});
+const todayISO = () => new Date().toISOString().slice(0,10);
+
+let state = {
+  entries: JSON.parse(localStorage.getItem("dca_entries_v1") || "[]"),
+  goal: JSON.parse(localStorage.getItem("dca_goal_v1") || '{"target":"","date":""}'),
+  theme: localStorage.getItem("dca_theme_v1") || "dark",
+  spread: localStorage.getItem("dca_spread_v1") || "2.7",
+  live: null,
+  lastUpdate: null,
+  tab: "dashboard",
+  chart: null,
+};
+
+function saveEntries(){ localStorage.setItem("dca_entries_v1", JSON.stringify(state.entries)); }
+function saveGoal(){ localStorage.setItem("dca_goal_v1", JSON.stringify(state.goal)); }
+
+async function fetchPrice(){
+  const icon = document.getElementById("refresh-icon");
+  icon.classList.add("spin");
+  document.getElementById("price-err").innerHTML = "";
+
+  // Source 1 : xaus.com — CORS entièrement ouvert, une seule requête, prix direct en EUR/g
+  try{
+    const res = await fetch("https://xaus.com/api/v1/spot?currency=EUR&unit=gram&compact=1&fresh=" + Date.now());
+    if(!res.ok) throw new Error("xaus");
+    const json = await res.json();
+    const gram = json.xau && json.xau.price;
+    if(!gram || isNaN(gram)) throw new Error("xaus-format");
+    state.live = { gram, oz: gram * OZ_TO_GRAM };
+    state.lastUpdate = new Date();
+    icon.classList.remove("spin");
+    renderHeader(); render();
+    return;
+  }catch(e1){ /* on tente la source de secours */ }
+
+  // Source 2 (secours) : gold-api.com (USD/once) + frankfurter.dev (conversion USD->EUR)
+  try{
+    const goldRes = await fetch("https://api.gold-api.com/price/XAU");
+    if(!goldRes.ok) throw new Error("gold");
+    const goldJson = await goldRes.json();
+    const usdPerOz = goldJson.price;
+
+    const fxRes = await fetch("https://api.frankfurter.dev/v1/latest?from=USD&to=EUR");
+    if(!fxRes.ok) throw new Error("fx");
+    const fxJson = await fxRes.json();
+    const eurPerUsd = fxJson.rates.EUR;
+
+    const oz = usdPerOz * eurPerUsd;
+    const gram = oz / OZ_TO_GRAM;
+    state.live = { oz, gram };
+    state.lastUpdate = new Date();
+  }catch(e2){
+    document.getElementById("price-err").innerHTML =
+      '<div class="err">Cours indisponible pour le moment (vérifiez votre connexion internet). Réessayez ou saisissez le prix manuellement.</div>';
+  }
+  icon.classList.remove("spin");
+  renderHeader();
+  render();
+}
+
+function renderHeader(){
+  document.getElementById("price-gram").innerHTML = state.live
+    ? fmtEUR(state.live.gram) + "<small> /g</small>" : "—";
+  document.getElementById("price-oz").textContent = state.live ? fmtEUR(state.live.oz) + " / once" : "";
+  document.getElementById("update-time").textContent = state.lastUpdate
+    ? "MAJ " + state.lastUpdate.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : "";
+}
+
+function sortedEntries(){ return [...state.entries].sort((a,b)=>a.date.localeCompare(b.date)); }
+
+function computeStats(){
+  const sorted = sortedEntries();
+  const totalInvested = sorted.reduce((s,e)=>s+e.amount,0);
+  const totalGrams = sorted.reduce((s,e)=>s+e.amount/e.price,0);
+  const avgPrice = totalGrams>0 ? totalInvested/totalGrams : null;
+  const currentValue = state.live ? totalGrams*state.live.gram : null;
+  const gain = currentValue!=null ? currentValue-totalInvested : null;
+  const gainPct = (gain!=null && totalInvested>0) ? (gain/totalInvested)*100 : null;
+
+  const spreadPct = parseFloat(state.spread) || 0;
+  const resaleGramPrice = state.live ? state.live.gram * (1 - spreadPct/100) : null;
+  const resaleValue = resaleGramPrice!=null ? totalGrams*resaleGramPrice : null;
+  const resaleGain = resaleValue!=null ? resaleValue-totalInvested : null;
+  const resaleGainPct = (resaleGain!=null && totalInvested>0) ? (resaleGain/totalInvested)*100 : null;
+
+  return {sorted, totalInvested, totalGrams, avgPrice, currentValue, gain, gainPct,
+    spreadPct, resaleGramPrice, resaleValue, resaleGain, resaleGainPct};
+}
+
+function render(){
+  const el = document.getElementById("content");
+  if(state.tab==="dashboard") el.innerHTML = renderDashboard();
+  if(state.tab==="add") el.innerHTML = renderAdd();
+  if(state.tab==="history") el.innerHTML = renderHistory();
+  if(state.tab==="goal") el.innerHTML = renderGoal();
+
+  document.querySelectorAll(".navbtn").forEach(b=>{
+    b.classList.toggle("active", b.dataset.tab===state.tab);
+  });
+
+  attachHandlers();
+  if(state.tab==="dashboard") drawChart();
+}
+
+function renderDashboard(){
+  const s = computeStats();
+  if(!s.sorted.length){
+    return `<div class="empty">
+      <p>Aucun versement enregistré. Ajoutez votre premier investissement mensuel pour démarrer le suivi.</p>
+      <button class="btn ghost" id="goto-add" style="margin-top:14px;">Ajouter un versement</button>
+    </div>`;
+  }
+  const isGain = s.gain>=0;
+  return `
+    <div class="grid2">
+      <div class="card"><p class="lbl">Investi</p><p class="val serif">${fmtEUR(s.totalInvested)}</p></div>
+      <div class="card hl"><p class="lbl">Valeur actuelle</p><p class="val serif">${fmtEUR(s.currentValue)}</p></div>
+      <div class="card"><p class="lbl">Or détenu</p><p class="val serif">${fmtG(s.totalGrams)}</p></div>
+      <div class="card"><p class="lbl">PRU</p><p class="val serif">${s.avgPrice?fmtEUR(s.avgPrice)+"/g":"—"}</p></div>
+    </div>
+    <div class="gainbox ${isGain?'up':'down'}">
+      <div class="row">
+        <div>
+          <p class="lbl">Gain / Perte latent (cours spot)</p>
+          <p class="amt serif" style="color:${isGain?'var(--gain)':'var(--loss)'}">
+            ${s.gain==null?"—":(s.gain>=0?"+":"")+fmtEUR(s.gain)}
+          </p>
+        </div>
+        <div class="pill ${isGain?'up':'down'}">${s.gainPct==null?"—":(s.gainPct>=0?"+":"")+s.gainPct.toFixed(1)+"%"}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div>
+          <p class="lbl">Valeur de revente estimée</p>
+          <p class="val serif" style="font-size:20px;margin-top:2px;">${fmtEUR(s.resaleValue)}</p>
+          <p style="font-size:11px;color:var(--muted);margin:4px 0 0;">
+            si tu revendais aujourd'hui (spread ${s.spreadPct}% appliqué)
+          </p>
+        </div>
+        <div class="pill ${s.resaleGain>=0?'up':'down'}">${s.resaleGainPct==null?"—":(s.resaleGainPct>=0?"+":"")+s.resaleGainPct.toFixed(1)+"%"}</div>
+      </div>
+    </div>
+    <div class="panel">
+      <p class="lbl">Évolution du portefeuille</p>
+      <div id="chart-wrap"><canvas id="chart"></canvas></div>
+      <div class="legend">
+        <span><span class="dot" style="background:#78716c"></span>Investi</span>
+        <span><span class="dot" style="background:#f59e0b"></span>Valeur</span>
+      </div>
+    </div>
+  `;
+}
+
+function drawChart(){
+  const wrap = document.getElementById("chart-wrap");
+  if(!wrap) return;
+
+  if(typeof Chart === "undefined"){
+    wrap.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:20px 0;text-align:center;">Graphique indisponible (bibliothèque non chargée — vérifiez votre connexion internet puis rafraîchissez la page).</p>';
+    return;
+  }
+
+  const s = computeStats();
+  if(!s.sorted.length) return;
+  let investedCum=0, gramsCum=0;
+  const labels=[], invested=[], value=[];
+  s.sorted.forEach(e=>{
+    investedCum+=e.amount; gramsCum+=e.amount/e.price;
+    labels.push(fmtDate(e.date));
+    invested.push(Math.round(investedCum*100)/100);
+    value.push(Math.round(gramsCum*e.price*100)/100);
+  });
+  if(state.live){
+    labels.push("Aujourd'hui");
+    invested.push(Math.round(investedCum*100)/100);
+    value.push(Math.round(gramsCum*state.live.gram*100)/100);
+  }
+  // un seul point => Chart.js n'affiche rien de lisible ; on duplique le point pour tracer une ligne plate visible
+  if(labels.length===1){
+    labels.unshift("Début");
+    invested.unshift(invested[0]);
+    value.unshift(value[0]);
+  }
+
+  // recrée le canvas à chaque rendu (évite les soucis de taille figée par Chart.js)
+  wrap.innerHTML = '<canvas id="chart"></canvas>';
+  const ctx = document.getElementById("chart");
+  if(!ctx) return;
+
+  try{
+    if(state.chart) state.chart.destroy();
+    state.chart = new Chart(ctx, {
+      type:"line",
+      data:{ labels, datasets:[
+        {label:"Investi", data:invested, borderColor:"#78716c", borderWidth:2, pointRadius:2, tension:.25},
+        {label:"Valeur", data:value, borderColor:"#f59e0b", backgroundColor:"#f59e0b", borderWidth:2.5, pointRadius:3, tension:.25},
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>fmtEUR(c.raw)}}},
+        scales:{
+          x:{ticks:{color:"#78716c",font:{size:10}}, grid:{display:false}},
+          y:{ticks:{color:"#78716c",font:{size:10}}, grid:{color:"#292524"}}
+        }
+      }
+    });
+  }catch(err){
+    wrap.innerHTML = '<p style="font-size:12px;color:var(--loss);padding:20px 0;text-align:center;">Erreur d\'affichage du graphique.</p>';
+  }
+}
+
+function renderAdd(){
+  return `
+    <h2 class="sec serif">Nouveau versement</h2>
+
+    <div class="panel" style="margin-top:0;margin-bottom:16px;">
+      <p class="lbl" style="margin-bottom:10px;">Importer depuis un e-Dekont İşbank</p>
+      <input type="file" id="f-dekont" accept="application/pdf" style="display:none;" />
+      <button type="button" class="btn ghost" id="f-dekont-btn" style="margin-top:0;">📄 Choisir le PDF du dekont</button>
+      <p id="f-dekont-status" style="font-size:12px;margin:10px 0 0;color:var(--muted);"></p>
+    </div>
+
+    <form id="add-form">
+      <label class="field">Date
+        <input type="date" id="f-date" value="${todayISO()}" required />
+      </label>
+      <label class="field">Montant investi (€)
+        <input type="number" inputmode="decimal" step="any" id="f-amount" placeholder="200" required />
+      </label>
+      <label class="field">Prix de l'or au moment de l'achat (€/g)
+        <input type="number" inputmode="decimal" step="any" id="f-price" value="${state.live?state.live.gram.toFixed(2):''}" required />
+      </label>
+      <p id="f-grams" style="font-size:13px;color:#a8a29e;"></p>
+      <button type="submit" class="btn">Enregistrer le versement</button>
+    </form>
+  `;
+}
+
+function parseTurkishNumber(str){
+  return parseFloat(str.replace(/\./g,"").replace(",","."));
+}
+
+async function extractPdfText(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = "";
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it=>it.str).join(" ") + "\n";
+  }
+  return text;
+}
+
+function parseIsbankDekont(text){
+  const dateM = text.match(/Dekont\s+Tarihi\s*:?\s*(\d{2})\.(\d{2})\.(\d{4})/i);
+  const amtM = text.match(/Sat.ş\s+Tutar.\s*:?\s*([\d.,]+)\s*EUR/i);
+  const gramM = text.match(/Al.ş\s+Tutar.\s*:?\s*([\d.,]+)\s*XAU/i);
+  if(!dateM || !amtM || !gramM) return null;
+  const date = `${dateM[3]}-${dateM[2]}-${dateM[1]}`;
+  const amount = parseTurkishNumber(amtM[1]);
+  const grams = parseTurkishNumber(gramM[1]);
+  if(!amount || !grams) return null;
+  return { date, amount, price: amount / grams, grams };
+}
+
+function renderHistory(){
+  const list = sortedEntries().slice().reverse();
+  if(!list.length) return `<p class="empty">Aucun versement pour le moment.</p>`;
+  return `<h2 class="sec serif">Historique</h2>` + list.map(e=>{
+    const grams = e.amount/e.price;
+    return `<div class="hist-item">
+      <div>
+        <p class="d">${fmtDate(e.date)}</p>
+        <p class="sub">${fmtEUR(e.price)}/g · ${fmtG(grams)}</p>
+      </div>
+      <div class="row" style="gap:12px;">
+        <p class="amt serif">${fmtEUR(e.amount)}</p>
+        <button class="del" data-del="${e.id}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderGoal(){
+  const s = computeStats();
+  const target = parseFloat(state.goal.target);
+  const progress = (target>0 && s.currentValue!=null) ? Math.min(100,(s.currentValue/target)*100) : 0;
+  const gramsTarget = (state.goal.target && state.live) ? parseFloat(state.goal.target)/state.live.gram : null;
+  const gramsRemaining = gramsTarget!=null ? Math.max(0, gramsTarget - s.totalGrams) : null;
+  return `
+    <h2 class="sec serif">Objectif</h2>
+    <label class="field">Valeur cible (€)
+      <input type="number" inputmode="decimal" id="g-target" placeholder="10000" value="${state.goal.target||''}" />
+    </label>
+    <label class="field">Échéance (optionnel)
+      <input type="date" id="g-date" value="${state.goal.date||''}" />
+    </label>
+    ${state.goal.target ? `
+    <div class="panel">
+      <div class="row" style="font-size:14px;">
+        <span style="color:#a8a29e;">Progression</span>
+        <span style="color:var(--gold);font-weight:600;">${progress.toFixed(1)}%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${progress}%;"></div></div>
+      <div class="row" style="font-size:11px;color:var(--muted);">
+        <span>${fmtEUR(s.currentValue)}</span><span>${fmtEUR(target)}</span>
+      </div>
+      ${gramsRemaining!=null ? `<p style="font-size:12px;color:var(--muted);margin-top:10px;">
+        Il vous reste ≈ <span style="color:var(--gold);">${fmtG(gramsRemaining)}</span> à acquérir au cours actuel.</p>` : ''}
+    </div>` : ''}
+
+    <h2 class="sec serif" style="margin-top:24px;">Réglages</h2>
+    <label class="field">
+      Spread de revente estimé (%)
+      <input type="number" inputmode="decimal" step="0.1" id="s-spread" value="${state.spread}" />
+    </label>
+    <p style="font-size:11px;color:var(--muted);margin-top:-6px;">
+      Écart entre le prix d'achat (Alış) et de revente (Satış) chez ta banque — utilisé pour estimer ce que tu toucherais réellement en revendant aujourd'hui. Regarde ces deux prix dans l'appli İşbank pour calculer le tien : (Alış − Satış) ÷ Alış × 100.
+    </p>
+  `;
+}
+
+function attachHandlers(){
+  const gotoAdd = document.getElementById("goto-add");
+  if(gotoAdd) gotoAdd.onclick = ()=>{ state.tab="add"; render(); };
+
+  const dekontBtn = document.getElementById("f-dekont-btn");
+  const dekontInput = document.getElementById("f-dekont");
+  const dekontStatus = document.getElementById("f-dekont-status");
+  if(dekontBtn && dekontInput){
+    dekontBtn.onclick = ()=> dekontInput.click();
+    dekontInput.onchange = async ()=>{
+      const file = dekontInput.files[0];
+      if(!file) return;
+      dekontStatus.style.color = "var(--muted)";
+      dekontStatus.textContent = "Lecture du dekont…";
+      try{
+        const text = await extractPdfText(file);
+        const parsed = parseIsbankDekont(text);
+        if(!parsed){
+          dekontStatus.style.color = "var(--loss)";
+          dekontStatus.textContent = "Impossible de reconnaître ce dekont automatiquement. Vérifiez qu'il s'agit bien d'un e-Dekont İşbank Alış XAU / Satış EUR, ou saisissez les champs à la main.";
+          return;
+        }
+        document.getElementById("f-date").value = parsed.date;
+        document.getElementById("f-amount").value = parsed.amount.toFixed(2);
+        document.getElementById("f-price").value = parsed.price.toFixed(4);
+        document.getElementById("f-amount").dispatchEvent(new Event("input"));
+        dekontStatus.style.color = "var(--gain)";
+        dekontStatus.textContent =
+          `Importé : ${fmtG(parsed.grams)} pour ${fmtEUR(parsed.amount)} (${parsed.price.toFixed(2)} €/g) le ${fmtDate(parsed.date)}. Vérifiez puis enregistrez.`;
+      }catch(err){
+        dekontStatus.style.color = "var(--loss)";
+        dekontStatus.textContent = "Erreur de lecture du PDF. Réessayez ou saisissez les champs manuellement.";
+      }
+    };
+  }
+
+  const form = document.getElementById("add-form");
+  if(form){
+    const amt = document.getElementById("f-amount");
+    const prc = document.getElementById("f-price");
+    const gtxt = document.getElementById("f-grams");
+    const updateGrams = ()=>{
+      const a=parseFloat(amt.value), p=parseFloat(prc.value);
+      gtxt.textContent = (a&&p) ? "≈ " + fmtG(a/p) + " d'or acquis" : "";
+    };
+    amt.oninput = updateGrams; prc.oninput = updateGrams;
+    form.onsubmit = (e)=>{
+      e.preventDefault();
+      const amount = parseFloat(amt.value), price = parseFloat(prc.value);
+      const date = document.getElementById("f-date").value;
+      if(!amount||!price||!date) return;
+      state.entries.push({id:Date.now().toString(), date, amount, price});
+      saveEntries();
+      state.tab="dashboard";
+      render();
+    };
+  }
+
+  document.querySelectorAll("[data-del]").forEach(b=>{
+    b.onclick = ()=>{
+      state.entries = state.entries.filter(e=>e.id!==b.dataset.del);
+      saveEntries(); render();
+    };
+  });
+
+  const gt = document.getElementById("g-target");
+  const gd = document.getElementById("g-date");
+  if(gt) gt.onblur = ()=>{ state.goal.target=gt.value; saveGoal(); render(); };
+  if(gd) gd.onblur = ()=>{ state.goal.date=gd.value; saveGoal(); render(); };
+
+  const sp = document.getElementById("s-spread");
+  if(sp) sp.onblur = ()=>{
+    const v = parseFloat(sp.value);
+    state.spread = (isNaN(v) ? "0" : v.toString());
+    localStorage.setItem("dca_spread_v1", state.spread);
+    render();
+  };
+}
+
+document.querySelectorAll(".navbtn").forEach(b=>{
+  b.onclick = ()=>{ state.tab=b.dataset.tab; render(); };
+});
+document.getElementById("refresh-btn").onclick = fetchPrice;
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=> navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+
+const SUN_SVG = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+const MOON_SVG = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+
+function applyTheme(){
+  document.body.classList.toggle("light", state.theme === "light");
+  const btn = document.getElementById("theme-btn");
+  if(btn){
+    // en mode sombre on propose de passer au jour (soleil), et inversement
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+      + (state.theme === "light" ? MOON_SVG : SUN_SVG) + '</svg>';
+  }
+}
+
+document.getElementById("theme-btn").onclick = ()=>{
+  state.theme = state.theme === "light" ? "dark" : "light";
+  localStorage.setItem("dca_theme_v1", state.theme);
+  applyTheme();
+  if(state.tab==="dashboard") drawChart();
+};
+
+applyTheme();
+fetchPrice();
+render();
+</script>
+</body>
+</html>
