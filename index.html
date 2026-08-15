@@ -200,9 +200,13 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
     <span>Résumé</span>
   </button>
-  <button class="navbtn" data-tab="bes-versements" data-section="bes" style="display:none;">
+  <button class="navbtn" data-tab="bes-add" data-section="bes" style="display:none;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    <span>Versements</span>
+    <span>Ajouter</span>
+  </button>
+  <button class="navbtn" data-tab="bes-historique" data-section="bes" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+    <span>Historique</span>
   </button>
   <button class="navbtn" data-tab="bes-reglages" data-section="bes" style="display:none;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -486,7 +490,8 @@ function render(){
   if(state.tab==="history") el.innerHTML = renderHistory();
   if(state.tab==="goal") el.innerHTML = renderGoal();
   if(state.tab==="bes-resume") el.innerHTML = renderBesResume();
-  if(state.tab==="bes-versements") el.innerHTML = renderBesVersements();
+  if(state.tab==="bes-add") el.innerHTML = renderBesAdd();
+  if(state.tab==="bes-historique") el.innerHTML = renderBesHistorique();
   if(state.tab==="bes-reglages") el.innerHTML = renderBesReglages();
 
   document.querySelectorAll(".navbtn").forEach(b=>{
@@ -788,11 +793,66 @@ function renderBesResume(){
   `;
 }
 
-function renderBesVersements(){
-  const s = computeBesStats();
-  const filterLabel = state.besFilter==="foyer" ? "Foyer (Cumul)" : state.besFilter;
+function renderBesAdd(){
   const editingPayment = state.besEditPaymentId ? state.besPayments.find(p=>p.id===state.besEditPaymentId) : null;
   const editingSnapshot = state.besEditSnapshotId ? state.besSnapshots.find(sn=>sn.id===state.besEditSnapshotId) : null;
+
+  return `
+    <h2 class="sec serif">Nouveau versement</h2>
+    <div class="panel" style="margin-top:0;">
+      <label class="field">Date
+        <input type="date" id="bp-date" value="${editingPayment?editingPayment.date:todayISO()}" />
+      </label>
+      <label class="field">Membre
+        <select id="bp-member" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font-size:15px;">
+          <option value="Murat" ${editingPayment&&editingPayment.member==='Murat'?'selected':''}>Murat</option>
+          <option value="Esra" ${editingPayment&&editingPayment.member==='Esra'?'selected':''}>Esra</option>
+        </select>
+      </label>
+      <label class="field">Montant versé (TL)
+        <input type="number" inputmode="decimal" step="any" id="bp-amount" placeholder="5000" value="${editingPayment?editingPayment.amountTL:''}" />
+      </label>
+      <label class="field">Contrat (si plusieurs contrats pour cette personne)
+        <input type="text" id="bp-contract" placeholder="ex: 2016 ou 2023 (laisser vide si un seul contrat)" value="${editingPayment?(editingPayment.contract||''):''}" />
+      </label>
+      <label class="field">Taux EUR/TRY à ce moment (optionnel, pour l'équivalent €)
+        <input type="number" inputmode="decimal" step="any" id="bp-rate" value="${editingPayment?(editingPayment.rate||''):state.besRate}" />
+      </label>
+      <div class="row" style="gap:8px;">
+        <button class="btn" id="bp-submit" style="flex:1;">${editingPayment?'Mettre à jour le versement':'Enregistrer le versement'}</button>
+        ${editingPayment?'<button class="btn ghost" id="bp-cancel" style="margin-top:0;width:auto;padding:13px 18px;">Annuler</button>':''}
+      </div>
+    </div>
+
+    <h2 class="sec serif" style="margin-top:24px;">Nouveau relevé de valeur</h2>
+    <div class="panel" style="margin-top:0;">
+      <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">Reporte ici la valeur totale affichée dans l'appli BES (fonds + abondement), pour un membre et un contrat donnés, à une date donnée.</p>
+      <label class="field">Date du relevé
+        <input type="date" id="bs-date" value="${editingSnapshot?editingSnapshot.date:todayISO()}" />
+      </label>
+      <label class="field">Membre
+        <select id="bs-member" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font-size:15px;">
+          <option value="Murat" ${editingSnapshot&&editingSnapshot.member==='Murat'?'selected':''}>Murat</option>
+          <option value="Esra" ${editingSnapshot&&editingSnapshot.member==='Esra'?'selected':''}>Esra</option>
+        </select>
+      </label>
+      <label class="field">Contrat (si plusieurs contrats pour cette personne)
+        <input type="text" id="bs-contract" placeholder="ex: 2016 ou 2023 (laisser vide si un seul contrat)" value="${editingSnapshot?(editingSnapshot.contract||''):''}" />
+      </label>
+      <label class="field">Valeur totale du contrat (TL)
+        <input type="number" inputmode="decimal" step="any" id="bs-value" placeholder="527696" value="${editingSnapshot?editingSnapshot.valueTL:''}" />
+      </label>
+      <div class="row" style="gap:8px;">
+        <button class="btn" id="bs-submit" style="flex:1;">${editingSnapshot?'Mettre à jour le relevé':'Enregistrer le relevé'}</button>
+        ${editingSnapshot?'<button class="btn ghost" id="bs-cancel" style="margin-top:0;width:auto;padding:13px 18px;">Annuler</button>':''}
+      </div>
+    </div>
+  `;
+}
+
+function renderBesHistorique(){
+  const s = computeBesStats();
+  const filterLabel = state.besFilter==="foyer" ? "Foyer (Cumul)" : state.besFilter;
 
   const rows = s.rows;
   const table = rows.length ? `
@@ -831,7 +891,7 @@ function renderBesVersements(){
     .sort((a,b)=>b.date.localeCompare(a.date));
   const snapshotList = snapshotsForFilter.length ? `
     <div style="margin-top:8px;">
-      ${snapshotsForFilter.slice(0,4).map(sn=>`
+      ${snapshotsForFilter.map(sn=>`
         <div class="hist-item" style="padding:9px 12px;">
           <div>
             <p class="d" style="font-size:12px;">${fmtDate(sn.date)} · <span class="member-tag">${sn.member}</span>${sn.contract?` · ${sn.contract}`:""}</p>
@@ -850,66 +910,13 @@ function renderBesVersements(){
   ` : `<p class="bes-empty">Aucun relevé de valeur enregistré.</p>`;
 
   return `
-    <h2 class="sec serif">Versements</h2>
+    <h2 class="sec serif">Historique</h2>
     ${besFilterSeg()}
 
-    <div class="row" style="gap:8px;margin-bottom:16px;">
-      <button class="btn ghost" id="bes-toggle-payment" style="margin-top:0;flex:1;">+ Versement</button>
-      <button class="btn ghost" id="bes-toggle-snapshot" style="margin-top:0;flex:1;">+ Relevé valeur</button>
-    </div>
-
-    <div id="bes-payment-form" style="display:${editingPayment?'block':'none'};" class="panel">
-      <label class="field">Date
-        <input type="date" id="bp-date" value="${editingPayment?editingPayment.date:todayISO()}" />
-      </label>
-      <label class="field">Membre
-        <select id="bp-member" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font-size:15px;">
-          <option value="Murat" ${editingPayment&&editingPayment.member==='Murat'?'selected':''}>Murat</option>
-          <option value="Esra" ${editingPayment&&editingPayment.member==='Esra'?'selected':''}>Esra</option>
-        </select>
-      </label>
-      <label class="field">Montant versé (TL)
-        <input type="number" inputmode="decimal" step="any" id="bp-amount" placeholder="5000" value="${editingPayment?editingPayment.amountTL:''}" />
-      </label>
-      <label class="field">Contrat (si plusieurs contrats pour cette personne)
-        <input type="text" id="bp-contract" placeholder="ex: 2016 ou 2023 (laisser vide si un seul contrat)" value="${editingPayment?(editingPayment.contract||''):''}" />
-      </label>
-      <label class="field">Taux EUR/TRY à ce moment (optionnel, pour l'équivalent €)
-        <input type="number" inputmode="decimal" step="any" id="bp-rate" value="${editingPayment?(editingPayment.rate||''):state.besRate}" />
-      </label>
-      <div class="row" style="gap:8px;">
-        <button class="btn" id="bp-submit" style="flex:1;">${editingPayment?'Mettre à jour le versement':'Enregistrer le versement'}</button>
-        ${editingPayment?'<button class="btn ghost" id="bp-cancel" style="margin-top:0;width:auto;padding:13px 18px;">Annuler</button>':''}
-      </div>
-    </div>
-
-    <div id="bes-snapshot-form" style="display:${editingSnapshot?'block':'none'};" class="panel">
-      <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">Reporte ici la valeur totale affichée dans l'appli BES (fonds + abondement), pour un membre et un contrat donnés, à une date donnée.</p>
-      <label class="field">Date du relevé
-        <input type="date" id="bs-date" value="${editingSnapshot?editingSnapshot.date:todayISO()}" />
-      </label>
-      <label class="field">Membre
-        <select id="bs-member" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font-size:15px;">
-          <option value="Murat" ${editingSnapshot&&editingSnapshot.member==='Murat'?'selected':''}>Murat</option>
-          <option value="Esra" ${editingSnapshot&&editingSnapshot.member==='Esra'?'selected':''}>Esra</option>
-        </select>
-      </label>
-      <label class="field">Contrat (si plusieurs contrats pour cette personne)
-        <input type="text" id="bs-contract" placeholder="ex: 2016 ou 2023 (laisser vide si un seul contrat)" value="${editingSnapshot?(editingSnapshot.contract||''):''}" />
-      </label>
-      <label class="field">Valeur totale du contrat (TL)
-        <input type="number" inputmode="decimal" step="any" id="bs-value" placeholder="527696" value="${editingSnapshot?editingSnapshot.valueTL:''}" />
-      </label>
-      <div class="row" style="gap:8px;">
-        <button class="btn" id="bs-submit" style="flex:1;">${editingSnapshot?'Mettre à jour le relevé':'Enregistrer le relevé'}</button>
-        ${editingSnapshot?'<button class="btn ghost" id="bs-cancel" style="margin-top:0;width:auto;padding:13px 18px;">Annuler</button>':''}
-      </div>
-    </div>
-
-    <h2 class="sec serif" style="margin-top:24px;font-size:16px;">Versements — ${filterLabel}</h2>
+    <h2 class="sec serif" style="margin-top:8px;font-size:16px;">Versements — ${filterLabel}</h2>
     ${table}
 
-    <h2 class="sec serif" style="margin-top:20px;font-size:16px;">Derniers relevés de valeur</h2>
+    <h2 class="sec serif" style="margin-top:20px;font-size:16px;">Relevés de valeur</h2>
     ${snapshotList}
   `;
 }
@@ -1115,19 +1122,6 @@ function attachHandlers(){
     render();
   };
 
-  const togglePayment = document.getElementById("bes-toggle-payment");
-  const paymentForm = document.getElementById("bes-payment-form");
-  if(togglePayment) togglePayment.onclick = ()=>{
-    if(state.besEditPaymentId){ state.besEditPaymentId = null; render(); return; }
-    paymentForm.style.display = paymentForm.style.display==="none" ? "block" : "none";
-  };
-  const toggleSnapshot = document.getElementById("bes-toggle-snapshot");
-  const snapshotForm = document.getElementById("bes-snapshot-form");
-  if(toggleSnapshot) toggleSnapshot.onclick = ()=>{
-    if(state.besEditSnapshotId){ state.besEditSnapshotId = null; render(); return; }
-    snapshotForm.style.display = snapshotForm.style.display==="none" ? "block" : "none";
-  };
-
   const bpSubmit = document.getElementById("bp-submit");
   if(bpSubmit) bpSubmit.onclick = ()=>{
     const date = document.getElementById("bp-date").value;
@@ -1170,10 +1164,10 @@ function attachHandlers(){
   if(bsCancel) bsCancel.onclick = ()=>{ state.besEditSnapshotId = null; render(); };
 
   document.querySelectorAll("[data-edit-payment]").forEach(b=>{
-    b.onclick = ()=>{ state.besEditPaymentId = b.dataset.editPayment; state.besEditSnapshotId = null; render(); };
+    b.onclick = ()=>{ state.besEditPaymentId = b.dataset.editPayment; state.besEditSnapshotId = null; state.tab = "bes-add"; render(); };
   });
   document.querySelectorAll("[data-edit-snapshot]").forEach(b=>{
-    b.onclick = ()=>{ state.besEditSnapshotId = b.dataset.editSnapshot; state.besEditPaymentId = null; render(); };
+    b.onclick = ()=>{ state.besEditSnapshotId = b.dataset.editSnapshot; state.besEditPaymentId = null; state.tab = "bes-add"; render(); };
   });
 
   document.querySelectorAll("[data-del-payment]").forEach(b=>{
