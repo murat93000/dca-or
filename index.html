@@ -88,11 +88,29 @@
   nav{position:fixed;bottom:0;left:0;right:0;background:var(--nav-bg);backdrop-filter:blur(8px);
     border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
   .navbtn{background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);
-    padding:6px 14px;border-radius:12px;}
+    padding:6px 8px;border-radius:12px;flex:1;min-width:0;}
   .navbtn.active{color:var(--gold);}
   .navbtn svg{width:20px;height:20px;}
   .navbtn span{font-size:10px;}
   #chart-wrap{width:100%;height:190px;position:relative;}
+
+  .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:16px;}
+  .seg button{flex:1;background:none;border:none;padding:8px 4px;border-radius:9px;font-size:12px;color:var(--muted);font-weight:600;}
+  .seg button.active{background:var(--gold);color:#0c0a09;}
+  .kpi-row{display:flex;flex-direction:column;gap:10px;}
+  .kpi-card{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:14px 16px;}
+  .kpi-card .lbl{font-size:11px;color:var(--muted);margin:0;}
+  .kpi-card .val-tl{font-size:19px;margin:4px 0 0;font-family:Georgia,serif;}
+  .kpi-card .val-eur{font-size:13px;color:var(--muted);margin:2px 0 0;}
+  .bes-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;}
+  .bes-table th{text-align:left;color:var(--muted);font-weight:600;font-size:10px;text-transform:uppercase;
+    letter-spacing:.04em;padding:6px 6px;border-bottom:1px solid var(--line);}
+  .bes-table td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+  .bes-table .member-tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:999px;background:var(--panel);border:1px solid var(--line);}
+  .bes-empty{text-align:center;color:var(--muted);font-size:12px;padding:14px 0;}
+  .sim-result{border:1px solid var(--gold-dim);background:#78350f22;border-radius:14px;padding:14px;margin-top:12px;}
+  .sim-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;}
+  .sim-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
 </style>
 </head>
 <body>
@@ -143,6 +161,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
     <span>Objectif</span>
   </button>
+  <button class="navbtn" data-tab="bes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 21 8 3 8"/></svg>
+    <span>BES</span>
+  </button>
 </nav>
 
 <script>
@@ -161,6 +183,11 @@ let state = {
   lastUpdate: null,
   tab: "dashboard",
   chart: null,
+  // BES
+  besPayments: JSON.parse(localStorage.getItem("bes_payments_v1") || "[]"), // {id,date,member,amountTL,rate}
+  besSnapshots: JSON.parse(localStorage.getItem("bes_snapshots_v1") || "[]"), // {id,date,member,valueTL}
+  besRate: localStorage.getItem("bes_rate_v1") || "",
+  besFilter: "foyer", // foyer | Murat | Esra
 };
 
 function saveEntries(){ localStorage.setItem("dca_entries_v1", JSON.stringify(state.entries)); }
@@ -239,12 +266,69 @@ function computeStats(){
     spreadPct, resaleGramPrice, resaleValue, resaleGain, resaleGainPct};
 }
 
+// ---------- BES ----------
+function saveBesPayments(){ localStorage.setItem("bes_payments_v1", JSON.stringify(state.besPayments)); }
+function saveBesSnapshots(){ localStorage.setItem("bes_snapshots_v1", JSON.stringify(state.besSnapshots)); }
+function saveBesRate(){ localStorage.setItem("bes_rate_v1", state.besRate); }
+
+const BES_MEMBERS = ["Murat", "Esra"];
+const fmtTL = n => (n==null||isNaN(n)) ? "—" : n.toLocaleString("fr-FR",{maximumFractionDigits:0}) + " TL";
+
+function besMembersForFilter(){
+  return state.besFilter === "foyer" ? BES_MEMBERS : [state.besFilter];
+}
+
+function besLatestSnapshot(member){
+  const list = state.besSnapshots.filter(s=>s.member===member).sort((a,b)=>a.date.localeCompare(b.date));
+  return list.length ? list[list.length-1] : null;
+}
+
+function computeBesStats(){
+  const members = besMembersForFilter();
+  const rate = parseFloat(state.besRate);
+
+  const payments = state.besPayments.filter(p=>members.includes(p.member));
+  const totalTL = payments.reduce((s,p)=>s+p.amountTL,0);
+  const totalEUR = payments.reduce((s,p)=>s+ (p.rate ? p.amountTL/p.rate : 0),0);
+
+  let currentTL = 0;
+  members.forEach(m=>{
+    const snap = besLatestSnapshot(m);
+    if(snap) currentTL += snap.valueTL;
+  });
+  const currentEUR = (rate && currentTL) ? currentTL/rate : null;
+
+  const gainTL = currentTL ? currentTL - totalTL : null;
+  const gainEUR = (currentEUR!=null) ? currentEUR - totalEUR : null;
+  const gainPct = (gainTL!=null && totalTL>0) ? (gainTL/totalTL)*100 : null;
+
+  // valeur actuelle par versement, répartie au prorata des versements du même membre
+  const totalTLparMembre = {};
+  members.forEach(m=>{
+    totalTLparMembre[m] = state.besPayments.filter(p=>p.member===m).reduce((s,p)=>s+p.amountTL,0);
+  });
+  const rows = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{
+    const snap = besLatestSnapshot(p.member);
+    const memberTotalTL = totalTLparMembre[p.member];
+    const share = (snap && memberTotalTL>0) ? p.amountTL/memberTotalTL : null;
+    const valueTL = share!=null ? snap.valueTL*share : null;
+    const rowGainTL = valueTL!=null ? valueTL - p.amountTL : null;
+    const amountEUR = p.rate ? p.amountTL/p.rate : null;
+    const valueEUR = (valueTL!=null && rate) ? valueTL/rate : null;
+    const rowGainEUR = (valueEUR!=null && amountEUR!=null) ? valueEUR - amountEUR : null;
+    return {...p, amountEUR, valueTL, valueEUR, rowGainTL, rowGainEUR};
+  });
+
+  return {rate, totalTL, totalEUR, currentTL, currentEUR, gainTL, gainEUR, gainPct, rows};
+}
+
 function render(){
   const el = document.getElementById("content");
   if(state.tab==="dashboard") el.innerHTML = renderDashboard();
   if(state.tab==="add") el.innerHTML = renderAdd();
   if(state.tab==="history") el.innerHTML = renderHistory();
   if(state.tab==="goal") el.innerHTML = renderGoal();
+  if(state.tab==="bes") el.innerHTML = renderBes();
 
   document.querySelectorAll(".navbtn").forEach(b=>{
     b.classList.toggle("active", b.dataset.tab===state.tab);
@@ -438,6 +522,159 @@ function renderHistory(){
   }).join("");
 }
 
+function renderBes(){
+  const s = computeBesStats();
+  const filterLabel = state.besFilter==="foyer" ? "Foyer (Cumul)" : state.besFilter;
+
+  const kpis = `
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <p class="lbl">Total investi</p>
+        <p class="val-tl">${fmtTL(s.totalTL)}</p>
+        <p class="val-eur">${s.rate ? fmtEUR(s.totalEUR) : "renseignez un taux EUR/TRY pour voir l'équivalent €"}</p>
+      </div>
+      <div class="kpi-card">
+        <p class="lbl">Valeur actuelle du portefeuille</p>
+        <p class="val-tl">${s.currentTL ? fmtTL(s.currentTL) : "—"}</p>
+        <p class="val-eur">${s.currentEUR!=null ? fmtEUR(s.currentEUR) : (s.currentTL ? "renseignez un taux EUR/TRY" : "aucun relevé enregistré")}</p>
+      </div>
+      <div class="kpi-card" style="border-color:${s.gainTL>=0?'#065f4699':'#7f1d1d99'};">
+        <p class="lbl">Bénéfice net</p>
+        <p class="val-tl" style="color:${s.gainTL>=0?'var(--gain)':'var(--loss)'};">
+          ${s.gainTL==null?"—":(s.gainTL>=0?"+":"")+fmtTL(s.gainTL)}
+          ${s.gainPct!=null ? `<span style="font-size:12px;font-family:sans-serif;color:var(--muted);"> (${s.gainPct>=0?"+":""}${s.gainPct.toFixed(1)}%)</span>` : ""}
+        </p>
+        <p class="val-eur">${s.gainEUR!=null ? (s.gainEUR>=0?"+":"")+fmtEUR(s.gainEUR) : ""}</p>
+      </div>
+    </div>
+  `;
+
+  const rateBox = `
+    <div class="panel">
+      <p class="lbl" style="margin-bottom:8px;">Taux de change EUR/TRY actuel (manuel)</p>
+      <div class="row" style="gap:8px;">
+        <input type="number" inputmode="decimal" step="any" id="bes-rate-input" placeholder="ex: 48.20" value="${state.besRate}" style="flex:1;" />
+        <button class="icon" id="bes-rate-fetch" title="Essayer de récupérer le taux du jour" style="width:44px;height:44px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0 0;">Utilisé pour convertir les valeurs TL en € dans cette page. Ajuste-le librement.</p>
+    </div>
+  `;
+
+  const rows = s.rows;
+  const table = rows.length ? `
+    <div style="overflow-x:auto;">
+    <table class="bes-table">
+      <thead><tr>
+        <th>Date</th><th>Membre</th><th>Versé</th><th>Valeur act.</th><th>Bénéfice</th><th></th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td>${fmtDate(r.date)}</td>
+            <td><span class="member-tag">${r.member}</span></td>
+            <td>${fmtTL(r.amountTL)}${r.amountEUR!=null?`<br><span style="color:var(--muted);">${fmtEUR(r.amountEUR)}</span>`:""}</td>
+            <td>${r.valueTL!=null?fmtTL(r.valueTL):"—"}${r.valueEUR!=null?`<br><span style="color:var(--muted);">${fmtEUR(r.valueEUR)}</span>`:""}</td>
+            <td style="color:${(r.rowGainTL||0)>=0?'var(--gain)':'var(--loss)'};">
+              ${r.rowGainTL!=null?(r.rowGainTL>=0?"+":"")+fmtTL(r.rowGainTL):"—"}
+            </td>
+            <td><button class="del" data-del-payment="${r.id}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button></td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+    </div>
+  ` : `<p class="bes-empty">Aucun versement pour "${filterLabel}" pour le moment.</p>`;
+
+  const snapshotsForFilter = state.besSnapshots.filter(sn=>besMembersForFilter().includes(sn.member))
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const snapshotList = snapshotsForFilter.length ? `
+    <div style="margin-top:8px;">
+      ${snapshotsForFilter.slice(0,4).map(sn=>`
+        <div class="hist-item" style="padding:9px 12px;">
+          <div>
+            <p class="d" style="font-size:12px;">${fmtDate(sn.date)} · <span class="member-tag">${sn.member}</span></p>
+          </div>
+          <div class="row" style="gap:10px;">
+            <p class="amt serif" style="font-size:14px;">${fmtTL(sn.valueTL)}</p>
+            <button class="del" data-del-snapshot="${sn.id}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </div>
+        </div>`).join("")}
+    </div>
+  ` : `<p class="bes-empty">Aucun relevé de valeur enregistré.</p>`;
+
+  return `
+    <h2 class="sec serif">BES — Épargne retraite</h2>
+
+    <div class="seg">
+      <button data-bes-filter="foyer" class="${state.besFilter==='foyer'?'active':''}">Foyer (Cumul)</button>
+      <button data-bes-filter="Murat" class="${state.besFilter==='Murat'?'active':''}">Murat</button>
+      <button data-bes-filter="Esra" class="${state.besFilter==='Esra'?'active':''}">Esra</button>
+    </div>
+
+    ${kpis}
+    ${rateBox}
+
+    <div class="row" style="gap:8px;margin-top:16px;">
+      <button class="btn ghost" id="bes-toggle-payment" style="margin-top:0;flex:1;">+ Versement</button>
+      <button class="btn ghost" id="bes-toggle-snapshot" style="margin-top:0;flex:1;">+ Relevé valeur</button>
+    </div>
+
+    <div id="bes-payment-form" style="display:none;" class="panel">
+      <label class="field">Date
+        <input type="date" id="bp-date" value="${todayISO()}" />
+      </label>
+      <label class="field">Membre
+        <select id="bp-member" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font-size:15px;">
+          <option value="Murat">Murat</option>
+          <option value="Esra">Esra</option>
+        </select>
+      </label>
+      <label class="field">Montant versé (TL)
+        <input type="number" inputmode="decimal" step="any" id="bp-amount" placeholder="5000" />
+      </label>
+      <label class="field">Taux EUR/TRY à ce moment (optionnel, pour l'équivalent €)
+        <input type="number" inputmode="decimal" step="any" id="bp-rate" value="${state.besRate}" />
+      </label>
+      <button class="btn" id="bp-submit">Enregistrer le versement</button>
+    </div>
+
+    <div id="bes-snapshot-form" style="display:none;" class="panel">
+      <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">Reporte ici la valeur totale affichée dans l'appli BES (fonds + abondement), pour un membre, à une date donnée.</p>
+      <label class="field">Date du relevé
+        <input type="date" id="bs-date" value="${todayISO()}" />
+      </label>
+      <label class="field">Membre
+        <select id="bs-member" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px 12px;color:var(--text);font-size:15px;">
+          <option value="Murat">Murat</option>
+          <option value="Esra">Esra</option>
+        </select>
+      </label>
+      <label class="field">Valeur totale du contrat (TL)
+        <input type="number" inputmode="decimal" step="any" id="bs-value" placeholder="527696" />
+      </label>
+      <button class="btn" id="bs-submit">Enregistrer le relevé</button>
+    </div>
+
+    <h2 class="sec serif" style="margin-top:24px;font-size:16px;">Versements — ${filterLabel}</h2>
+    ${table}
+
+    <h2 class="sec serif" style="margin-top:20px;font-size:16px;">Derniers relevés de valeur</h2>
+    ${snapshotList}
+
+    <h2 class="sec serif" style="margin-top:24px;">Simulateur d'injection</h2>
+    <label class="field">Montant à injecter (€)
+      <input type="number" inputmode="decimal" step="any" id="sim-amount" placeholder="5000" />
+    </label>
+    <button class="btn ghost" id="sim-calc" style="margin-top:0;">Calculer la répartition</button>
+    <div id="sim-result"></div>
+  `;
+}
+
 function renderGoal(){
   const s = computeStats();
   const target = parseFloat(state.goal.target);
@@ -553,6 +790,102 @@ function attachHandlers(){
     state.spread = (isNaN(v) ? "0" : v.toString());
     localStorage.setItem("dca_spread_v1", state.spread);
     render();
+  };
+
+  // ---------- BES ----------
+  document.querySelectorAll("[data-bes-filter]").forEach(b=>{
+    b.onclick = ()=>{ state.besFilter = b.dataset.besFilter; render(); };
+  });
+
+  const besRateInput = document.getElementById("bes-rate-input");
+  if(besRateInput) besRateInput.onblur = ()=>{
+    state.besRate = besRateInput.value;
+    saveBesRate(); render();
+  };
+  const besRateFetch = document.getElementById("bes-rate-fetch");
+  if(besRateFetch) besRateFetch.onclick = async ()=>{
+    besRateFetch.querySelector("svg").classList.add("spin");
+    try{
+      const res = await fetch("https://api.frankfurter.dev/v1/latest?from=EUR&to=TRY");
+      const json = await res.json();
+      if(json.rates && json.rates.TRY){
+        state.besRate = json.rates.TRY.toFixed(4);
+        saveBesRate();
+      }
+    }catch(e){ /* silencieux, l'utilisateur garde la main pour saisir manuellement */ }
+    render();
+  };
+
+  const togglePayment = document.getElementById("bes-toggle-payment");
+  const paymentForm = document.getElementById("bes-payment-form");
+  if(togglePayment) togglePayment.onclick = ()=>{
+    paymentForm.style.display = paymentForm.style.display==="none" ? "block" : "none";
+  };
+  const toggleSnapshot = document.getElementById("bes-toggle-snapshot");
+  const snapshotForm = document.getElementById("bes-snapshot-form");
+  if(toggleSnapshot) toggleSnapshot.onclick = ()=>{
+    snapshotForm.style.display = snapshotForm.style.display==="none" ? "block" : "none";
+  };
+
+  const bpSubmit = document.getElementById("bp-submit");
+  if(bpSubmit) bpSubmit.onclick = ()=>{
+    const date = document.getElementById("bp-date").value;
+    const member = document.getElementById("bp-member").value;
+    const amountTL = parseFloat(document.getElementById("bp-amount").value);
+    const rate = parseFloat(document.getElementById("bp-rate").value) || null;
+    if(!date || !amountTL) return;
+    state.besPayments.push({ id: Date.now().toString(), date, member, amountTL, rate });
+    saveBesPayments();
+    render();
+  };
+
+  const bsSubmit = document.getElementById("bs-submit");
+  if(bsSubmit) bsSubmit.onclick = ()=>{
+    const date = document.getElementById("bs-date").value;
+    const member = document.getElementById("bs-member").value;
+    const valueTL = parseFloat(document.getElementById("bs-value").value);
+    if(!date || !valueTL) return;
+    state.besSnapshots.push({ id: Date.now().toString(), date, member, valueTL });
+    saveBesSnapshots();
+    render();
+  };
+
+  document.querySelectorAll("[data-del-payment]").forEach(b=>{
+    b.onclick = ()=>{
+      state.besPayments = state.besPayments.filter(p=>p.id!==b.dataset.delPayment);
+      saveBesPayments(); render();
+    };
+  });
+  document.querySelectorAll("[data-del-snapshot]").forEach(b=>{
+    b.onclick = ()=>{
+      state.besSnapshots = state.besSnapshots.filter(sn=>sn.id!==b.dataset.delSnapshot);
+      saveBesSnapshots(); render();
+    };
+  });
+
+  const simCalc = document.getElementById("sim-calc");
+  if(simCalc) simCalc.onclick = ()=>{
+    const amountEUR = parseFloat(document.getElementById("sim-amount").value);
+    const rate = parseFloat(state.besRate);
+    const box = document.getElementById("sim-result");
+    if(!amountEUR){ box.innerHTML = ""; return; }
+    const half = amountEUR/2;
+    const halfTL = rate ? half*rate : null;
+    const totalTL = rate ? amountEUR*rate : null;
+    const abondementTL = totalTL!=null ? totalTL*0.30 : null;
+    const abondementEUR = abondementTL!=null && rate ? abondementTL/rate : null;
+    box.innerHTML = `
+      <div class="sim-result">
+        <div class="sim-row"><span>Part Murat</span><span>${fmtEUR(half)}${halfTL?` · ${fmtTL(halfTL)}`:""}</span></div>
+        <div class="sim-row"><span>Part Esra</span><span>${fmtEUR(half)}${halfTL?` · ${fmtTL(halfTL)}`:""}</span></div>
+        <div class="sim-row" style="border-top:1px solid var(--line);margin-top:6px;padding-top:8px;">
+          <span style="color:var(--gold);">Abondement d'État (30%)</span>
+          <span style="color:var(--gold);">${abondementTL!=null?fmtTL(abondementTL):"—"}${abondementEUR!=null?` · ${fmtEUR(abondementEUR)}`:""}</span>
+        </div>
+        <p class="sim-note">⚠️ Ce montant est théorique : l'abondement de l'État n'est réellement acquis ("hak edilen") qu'après 3 ans de détention du contrat. Avant cette échéance, il apparaît dans le fonds mais n'est pas définitivement à toi.
+        ${!rate ? "<br>Renseigne un taux EUR/TRY ci-dessus pour voir les montants en TL." : ""}</p>
+      </div>
+    `;
   };
 }
 
