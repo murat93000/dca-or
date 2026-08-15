@@ -1,25 +1,20 @@
-const CACHE = "dca-or-v1";
-const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
+// v3 : plus aucune mise en cache. Le service worker existe uniquement pour satisfaire
+// les critères d'installation PWA de Chrome — toutes les requêtes passent en direct par le réseau.
+// Ça évite définitivement les soucis de "version obsolète affichée".
+const CACHE = "dca-or-v3";
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (e) => {
+  // purge tout cache laissé par les anciennes versions (v1, v2)
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
 self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  // Ne jamais mettre en cache les appels de cours (toujours réseau frais)
-  if (url.hostname.includes("gold-api.com") || url.hostname.includes("frankfurter.dev")) {
-    return;
-  }
-  e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request))
-  );
+  e.respondWith(fetch(e.request));
 });

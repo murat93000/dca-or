@@ -711,6 +711,11 @@ function renderGoal(){
     <p style="font-size:11px;color:var(--muted);margin-top:-6px;">
       Écart entre le prix d'achat (Alış) et de revente (Satış) chez ta banque — utilisé pour estimer ce que tu toucherais réellement en revendant aujourd'hui. Regarde ces deux prix dans l'appli İşbank pour calculer le tien : (Alış − Satış) ÷ Alış × 100.
     </p>
+
+    <button class="btn ghost" id="force-update-btn" style="margin-top:18px;">🔄 Forcer la mise à jour de l'appli</button>
+    <p style="font-size:11px;color:var(--muted);margin-top:8px;">
+      À utiliser si une mise à jour ne s'affiche pas après un changement sur GitHub. Sans danger : tes versements et objectifs ne sont pas touchés.
+    </p>
   `;
 }
 
@@ -790,6 +795,22 @@ function attachHandlers(){
     state.spread = (isNaN(v) ? "0" : v.toString());
     localStorage.setItem("dca_spread_v1", state.spread);
     render();
+  };
+
+  const forceUpdate = document.getElementById("force-update-btn");
+  if(forceUpdate) forceUpdate.onclick = async ()=>{
+    forceUpdate.textContent = "Mise à jour en cours…";
+    try{
+      if("serviceWorker" in navigator){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for(const r of regs) await r.unregister();
+      }
+      if("caches" in window){
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k=>caches.delete(k)));
+      }
+    }catch(e){ /* on recharge quand même */ }
+    location.reload(true);
   };
 
   // ---------- BES ----------
