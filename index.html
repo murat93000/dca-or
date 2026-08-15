@@ -294,8 +294,8 @@ function besLatestSnapshot(member, contract){
   return list.length ? list[list.length-1] : null;
 }
 
-function computeBesStats(){
-  const members = besMembersForFilter();
+function computeBesStats(overrideMembers){
+  const members = overrideMembers || besMembersForFilter();
   const rate = parseFloat(state.besRate);
 
   const payments = state.besPayments.filter(p=>members.includes(p.member));
@@ -335,6 +335,26 @@ function computeBesStats(){
   });
 
   return {rate, totalTL, totalEUR, currentTL, currentEUR, gainTL, gainEUR, gainPct, rows};
+}
+
+function computeGlobalBilan(){
+  const goldStats = computeStats();
+  const besStats = computeBesStats(BES_MEMBERS); // toujours le foyer complet, quel que soit le filtre BES actif
+  const rate = parseFloat(state.besRate);
+
+  const goldInvestedTL = rate ? goldStats.totalInvested*rate : null;
+  const goldValueTL = (rate && goldStats.currentValue!=null) ? goldStats.currentValue*rate : null;
+
+  const totalInvestedEUR = goldStats.totalInvested + (besStats.totalEUR||0);
+  const totalInvestedTL = (goldInvestedTL||0) + besStats.totalTL;
+  const totalValueEUR = (goldStats.currentValue||0) + (besStats.currentEUR||0);
+  const totalValueTL = (goldValueTL||0) + besStats.currentTL;
+  const totalGainEUR = totalValueEUR - totalInvestedEUR;
+  const totalGainTL = totalValueTL - totalInvestedTL;
+  const totalGainPct = totalInvestedEUR>0 ? (totalGainEUR/totalInvestedEUR)*100 : null;
+
+  return {totalInvestedEUR, totalInvestedTL, totalValueEUR, totalValueTL, totalGainEUR, totalGainTL, totalGainPct,
+    hasRate: !!rate};
 }
 
 function render(){
@@ -711,6 +731,37 @@ function renderBes(){
     </label>
     <button class="btn ghost" id="sim-calc" style="margin-top:0;">Calculer la répartition</button>
     <div id="sim-result"></div>
+
+    ${(()=>{ const g = computeGlobalBilan(); return `
+    <h2 class="sec serif" style="margin-top:28px;">Bilan global — Or + BES</h2>
+    <div class="panel" style="border-color:var(--gold-dim);">
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <p class="lbl">Total investi</p>
+          <p class="val-tl" style="font-size:19px;margin-top:3px;">${fmtTL(g.totalInvestedTL)}</p>
+          <p class="val-eur">${fmtEUR(g.totalInvestedEUR)}</p>
+        </div>
+      </div>
+      <div class="row" style="align-items:flex-start;margin-top:14px;">
+        <div>
+          <p class="lbl">Valeur actuelle</p>
+          <p class="val-tl" style="font-size:19px;margin-top:3px;">${fmtTL(g.totalValueTL)}</p>
+          <p class="val-eur">${fmtEUR(g.totalValueEUR)}</p>
+        </div>
+      </div>
+      <div class="row" style="align-items:flex-start;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
+        <div>
+          <p class="lbl">Bénéfice total</p>
+          <p class="val-tl" style="font-size:20px;margin-top:3px;color:${g.totalGainTL>=0?'var(--gain)':'var(--loss)'};">
+            ${g.totalGainTL>=0?"+":""}${fmtTL(g.totalGainTL)}
+            ${g.totalGainPct!=null?`<span style="font-size:12px;font-family:sans-serif;color:var(--muted);"> (${g.totalGainPct>=0?"+":""}${g.totalGainPct.toFixed(1)}%)</span>`:""}
+          </p>
+          <p class="val-eur" style="color:${g.totalGainEUR>=0?'var(--gain)':'var(--loss)'};">${g.totalGainEUR>=0?"+":""}${fmtEUR(g.totalGainEUR)}</p>
+        </div>
+      </div>
+      ${!g.hasRate ? '<p style="font-size:11px;color:var(--muted);margin-top:12px;">Renseigne un taux EUR/TRY ci-dessus pour que la part or soit aussi convertie en TL dans ce bilan.</p>' : ''}
+    </div>
+    `; })()}
   `;
 }
 
