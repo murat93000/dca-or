@@ -278,8 +278,17 @@ function besMembersForFilter(){
   return state.besFilter === "foyer" ? BES_MEMBERS : [state.besFilter];
 }
 
-function besLatestSnapshot(member){
-  const list = state.besSnapshots.filter(s=>s.member===member).sort((a,b)=>a.date.localeCompare(b.date));
+function besContractsForMember(member){
+  const set = new Set();
+  state.besPayments.filter(p=>p.member===member).forEach(p=>set.add(p.contract||""));
+  state.besSnapshots.filter(sn=>sn.member===member).forEach(sn=>set.add(sn.contract||""));
+  return [...set];
+}
+
+function besLatestSnapshot(member, contract){
+  const list = state.besSnapshots
+    .filter(sn=>sn.member===member && (sn.contract||"")===(contract||""))
+    .sort((a,b)=>a.date.localeCompare(b.date));
   return list.length ? list[list.length-1] : null;
 }
 
@@ -293,8 +302,10 @@ function computeBesStats(){
 
   let currentTL = 0;
   members.forEach(m=>{
-    const snap = besLatestSnapshot(m);
-    if(snap) currentTL += snap.valueTL;
+    besContractsForMember(m).forEach(c=>{
+      const snap = besLatestSnapshot(m, c);
+      if(snap) currentTL += snap.valueTL;
+    });
   });
   const currentEUR = (rate && currentTL) ? currentTL/rate : null;
 
@@ -302,15 +313,17 @@ function computeBesStats(){
   const gainEUR = (currentEUR!=null) ? currentEUR - totalEUR : null;
   const gainPct = (gainTL!=null && totalTL>0) ? (gainTL/totalTL)*100 : null;
 
-  // valeur actuelle par versement, répartie au prorata des versements du même membre
-  const totalTLparMembre = {};
-  members.forEach(m=>{
-    totalTLparMembre[m] = state.besPayments.filter(p=>p.member===m).reduce((s,p)=>s+p.amountTL,0);
+  // valeur actuelle par versement, répartie au prorata des versements du MÊME membre + MÊME contrat
+  const totalTLparKey = {};
+  state.besPayments.forEach(p=>{
+    const key = p.member+"||"+(p.contract||"");
+    totalTLparKey[key] = (totalTLparKey[key]||0) + p.amountTL;
   });
   const rows = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>{
-    const snap = besLatestSnapshot(p.member);
-    const memberTotalTL = totalTLparMembre[p.member];
-    const share = (snap && memberTotalTL>0) ? p.amountTL/memberTotalTL : null;
+    const key = p.member+"||"+(p.contract||"");
+    const snap = besLatestSnapshot(p.member, p.contract);
+    const keyTotalTL = totalTLparKey[key];
+    const share = (snap && keyTotalTL>0) ? p.amountTL/keyTotalTL : null;
     const valueTL = share!=null ? snap.valueTL*share : null;
     const rowGainTL = valueTL!=null ? valueTL - p.amountTL : null;
     const amountEUR = p.rate ? p.amountTL/p.rate : null;
@@ -573,7 +586,7 @@ function renderBes(){
         ${rows.map(r=>`
           <tr>
             <td>${fmtDate(r.date)}</td>
-            <td><span class="member-tag">${r.member}</span></td>
+            <td><span class="member-tag">${r.member}</span>${r.contract?`<br><span style="color:var(--muted);font-size:10px;">${r.contract}</span>`:""}</td>
             <td>${fmtTL(r.amountTL)}${r.amountEUR!=null?`<br><span style="color:var(--muted);">${fmtEUR(r.amountEUR)}</span>`:""}</td>
             <td>${r.valueTL!=null?fmtTL(r.valueTL):"—"}${r.valueEUR!=null?`<br><span style="color:var(--muted);">${fmtEUR(r.valueEUR)}</span>`:""}</td>
             <td style="color:${(r.rowGainTL||0)>=0?'var(--gain)':'var(--loss)'};">
@@ -595,7 +608,7 @@ function renderBes(){
       ${snapshotsForFilter.slice(0,4).map(sn=>`
         <div class="hist-item" style="padding:9px 12px;">
           <div>
-            <p class="d" style="font-size:12px;">${fmtDate(sn.date)} · <span class="member-tag">${sn.member}</span></p>
+            <p class="d" style="font-size:12px;">${fmtDate(sn.date)} · <span class="member-tag">${sn.member}</span>${sn.contract?` · ${sn.contract}`:""}</p>
           </div>
           <div class="row" style="gap:10px;">
             <p class="amt serif" style="font-size:14px;">${fmtTL(sn.valueTL)}</p>
@@ -637,6 +650,9 @@ function renderBes(){
       <label class="field">Montant versé (TL)
         <input type="number" inputmode="decimal" step="any" id="bp-amount" placeholder="5000" />
       </label>
+      <label class="field">Contrat (si plusieurs contrats pour cette personne)
+        <input type="text" id="bp-contract" placeholder="ex: 2016 ou 2023 (laisser vide si un seul contrat)" />
+      </label>
       <label class="field">Taux EUR/TRY à ce moment (optionnel, pour l'équivalent €)
         <input type="number" inputmode="decimal" step="any" id="bp-rate" value="${state.besRate}" />
       </label>
@@ -644,7 +660,7 @@ function renderBes(){
     </div>
 
     <div id="bes-snapshot-form" style="display:none;" class="panel">
-      <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">Reporte ici la valeur totale affichée dans l'appli BES (fonds + abondement), pour un membre, à une date donnée.</p>
+      <p style="font-size:11px;color:var(--muted);margin:0 0 10px;">Reporte ici la valeur totale affichée dans l'appli BES (fonds + abondement), pour un membre et un contrat donnés, à une date donnée.</p>
       <label class="field">Date du relevé
         <input type="date" id="bs-date" value="${todayISO()}" />
       </label>
@@ -653,6 +669,9 @@ function renderBes(){
           <option value="Murat">Murat</option>
           <option value="Esra">Esra</option>
         </select>
+      </label>
+      <label class="field">Contrat (si plusieurs contrats pour cette personne)
+        <input type="text" id="bs-contract" placeholder="ex: 2016 ou 2023 (laisser vide si un seul contrat)" />
       </label>
       <label class="field">Valeur totale du contrat (TL)
         <input type="number" inputmode="decimal" step="any" id="bs-value" placeholder="527696" />
@@ -853,9 +872,10 @@ function attachHandlers(){
     const date = document.getElementById("bp-date").value;
     const member = document.getElementById("bp-member").value;
     const amountTL = parseFloat(document.getElementById("bp-amount").value);
+    const contract = document.getElementById("bp-contract").value.trim();
     const rate = parseFloat(document.getElementById("bp-rate").value) || null;
     if(!date || !amountTL) return;
-    state.besPayments.push({ id: Date.now().toString(), date, member, amountTL, rate });
+    state.besPayments.push({ id: Date.now().toString(), date, member, amountTL, contract, rate });
     saveBesPayments();
     render();
   };
@@ -864,9 +884,10 @@ function attachHandlers(){
   if(bsSubmit) bsSubmit.onclick = ()=>{
     const date = document.getElementById("bs-date").value;
     const member = document.getElementById("bs-member").value;
+    const contract = document.getElementById("bs-contract").value.trim();
     const valueTL = parseFloat(document.getElementById("bs-value").value);
     if(!date || !valueTL) return;
-    state.besSnapshots.push({ id: Date.now().toString(), date, member, valueTL });
+    state.besSnapshots.push({ id: Date.now().toString(), date, member, contract, valueTL });
     saveBesSnapshots();
     render();
   };
