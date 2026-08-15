@@ -18,12 +18,14 @@
     --text:#f5f5f4; --muted:#78716c; --sub:#57534e; --gold:#f59e0b; --gold-dim:#b45309;
     --accent:#fcd34d; --gain:#34d399; --loss:#f87171;
     --header-bg:rgba(12,10,9,.95); --nav-bg:rgba(12,10,9,.97);
+    --bes-accent:#60a5fa; --bes-accent-dim:#2563eb;
   }
   body.light{
     --bg:#f7f4ee; --panel:#ffffff; --surface:rgba(255,255,255,0.8); --line:#e6dfd0;
     --text:#1c1917; --muted:#8a8478; --sub:#a89f8e; --gold:#b45309; --gold-dim:#92400e;
     --accent:#92400e; --gain:#047857; --loss:#dc2626;
     --header-bg:rgba(247,244,238,.95); --nav-bg:rgba(247,244,238,.97);
+    --bes-accent:#2563eb; --bes-accent-dim:#1d4ed8;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -94,9 +96,24 @@
   .navbtn span{font-size:10px;}
   #chart-wrap{width:100%;height:190px;position:relative;}
 
+  .section-switch{display:flex;gap:8px;margin-top:16px;}
+  .section-switch button{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px;
+    color:var(--muted);font-size:13px;font-weight:600;}
+  .section-switch button svg{width:16px;height:16px;}
+  .section-switch button.active{background:var(--gold);border-color:var(--gold);color:#0c0a09;}
+
   .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:16px;}
   .seg button{flex:1;background:none;border:none;padding:8px 4px;border-radius:9px;font-size:12px;color:var(--muted);font-weight:600;}
   .seg button.active{background:var(--gold);color:#0c0a09;}
+
+  /* carte unique avec lignes divisées, au lieu d'empiler plusieurs boîtes */
+  .stat-card{border:1px solid var(--line);background:var(--surface);border-radius:18px;overflow:hidden;}
+  .stat-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;}
+  .stat-row + .stat-row{border-top:1px solid var(--line);}
+  .stat-row .lbl{font-size:12px;color:var(--muted);margin:0;}
+  .stat-row .val-tl{font-size:17px;margin:2px 0 0;font-family:Georgia,serif;text-align:right;}
+  .stat-row .val-eur{font-size:12px;color:var(--muted);margin:1px 0 0;text-align:right;}
   .kpi-row{display:flex;flex-direction:column;gap:10px;}
   .kpi-card{border:1px solid var(--line);background:var(--surface);border-radius:16px;padding:14px 16px;}
   .kpi-card .lbl{font-size:11px;color:var(--muted);margin:0;}
@@ -111,6 +128,14 @@
   .sim-result{border:1px solid var(--gold-dim);background:#78350f22;border-radius:14px;padding:14px;margin-top:12px;}
   .sim-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;}
   .sim-note{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+  .section-switch button[data-section="bes"].active{background:var(--bes-accent);border-color:var(--bes-accent);color:#0c0a09;}
+  body.bes-mode h2.sec{color:var(--bes-accent);}
+  body.bes-mode .seg button.active{background:var(--bes-accent);color:#fff;}
+  body.bes-mode .btn:not(.ghost){background:var(--bes-accent);color:#fff;}
+  body.bes-mode .btn.ghost{border-color:var(--bes-accent-dim);color:var(--bes-accent);}
+  body.bes-mode button.icon{color:var(--bes-accent);}
+  body.bes-mode input:focus{border-color:var(--bes-accent-dim);}
+  body.bes-mode .navbtn.active{color:var(--bes-accent);}
 </style>
 </head>
 <body>
@@ -140,34 +165,55 @@
     <p class="update-time" id="update-time"></p>
   </div>
   <div id="price-err"></div>
+  <div class="section-switch">
+    <button data-section="or" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M8.5 9.5a2.5 2.5 0 0 1 2.3-1.5h2.4a2.3 2.3 0 0 1 0 4.6h-2.4a2.3 2.3 0 0 0 0 4.6h2.4a2.5 2.5 0 0 0 2.3-1.5"/></svg>
+      Or
+    </button>
+    <button data-section="bes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 21 8 3 8"/></svg>
+      BES
+    </button>
+  </div>
 </header>
 
 <main id="content"></main>
 
 <nav>
-  <button class="navbtn active" data-tab="dashboard">
+  <button class="navbtn active" data-tab="dashboard" data-section="or">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
     <span>Tableau</span>
   </button>
-  <button class="navbtn" data-tab="add">
+  <button class="navbtn" data-tab="add" data-section="or">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     <span>Ajouter</span>
   </button>
-  <button class="navbtn" data-tab="history">
+  <button class="navbtn" data-tab="history" data-section="or">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
     <span>Historique</span>
   </button>
-  <button class="navbtn" data-tab="goal">
+  <button class="navbtn" data-tab="goal" data-section="or">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
     <span>Objectif</span>
   </button>
-  <button class="navbtn" data-tab="bes">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 21 8 3 8"/></svg>
-    <span>BES</span>
+  <button class="navbtn" data-tab="bes-resume" data-section="bes" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+    <span>Résumé</span>
+  </button>
+  <button class="navbtn" data-tab="bes-versements" data-section="bes" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span>Versements</span>
+  </button>
+  <button class="navbtn" data-tab="bes-reglages" data-section="bes" style="display:none;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Réglages</span>
   </button>
 </nav>
 
+<input type="file" id="import-file-input" accept="application/json" style="display:none;" />
+
 <script>
+const SECTION_TABS = { or: "dashboard", bes: "bes-resume" };
 const OZ_TO_GRAM = 31.1034768;
 const fmtEUR = n => (n==null||isNaN(n)) ? "—" : n.toLocaleString("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:2});
 const fmtG = n => (n==null||isNaN(n)) ? "—" : n.toLocaleString("fr-FR",{maximumFractionDigits:3}) + " g";
@@ -177,12 +223,14 @@ const todayISO = () => new Date().toISOString().slice(0,10);
 let state = {
   entries: JSON.parse(localStorage.getItem("dca_entries_v1") || "[]"),
   goal: JSON.parse(localStorage.getItem("dca_goal_v1") || '{"target":"","date":""}'),
-  theme: localStorage.getItem("dca_theme_v1") || "dark",
+  theme: localStorage.getItem("dca_theme_v1") || "light",
   spread: localStorage.getItem("dca_spread_v1") || "2.7",
   live: null,
   lastUpdate: null,
   tab: "dashboard",
+  section: "or",
   chart: null,
+  besChart: null,
   // BES
   besPayments: JSON.parse(localStorage.getItem("bes_payments_v1") || "[]"), // {id,date,member,amountTL,rate}
   besSnapshots: JSON.parse(localStorage.getItem("bes_snapshots_v1") || "[]"), // {id,date,member,valueTL}
@@ -357,20 +405,108 @@ function computeGlobalBilan(){
     hasRate: !!rate};
 }
 
+function computeBesChartData(){
+  const members = besMembersForFilter();
+  const combos = [];
+  members.forEach(m=> besContractsForMember(m).forEach(c=> combos.push({member:m, contract:c})));
+  if(!combos.length) return null;
+
+  const dateSet = new Set();
+  state.besSnapshots.forEach(sn=>{
+    if(combos.some(c=>c.member===sn.member && c.contract===(sn.contract||""))) dateSet.add(sn.date);
+  });
+  const dates = [...dateSet].sort();
+  if(!dates.length) return null;
+
+  const labels=[], invested=[], value=[];
+  dates.forEach(d=>{
+    let v = 0;
+    combos.forEach(c=>{
+      const snaps = state.besSnapshots
+        .filter(sn=>sn.member===c.member && (sn.contract||"")===c.contract && sn.date<=d)
+        .sort((a,b)=>a.date.localeCompare(b.date));
+      if(snaps.length) v += snaps[snaps.length-1].valueTL;
+    });
+    const inv = state.besPayments
+      .filter(p=>members.includes(p.member) && p.date<=d)
+      .reduce((s,p)=>s+p.amountTL,0);
+    labels.push(fmtDate(d));
+    invested.push(Math.round(inv));
+    value.push(Math.round(v));
+  });
+  if(labels.length===1){
+    labels.unshift("Début");
+    invested.unshift(invested[0]);
+    value.unshift(value[0]);
+  }
+  return {labels, invested, value};
+}
+
+function drawBesChart(){
+  const wrap = document.getElementById("bes-chart-wrap");
+  if(!wrap) return;
+  if(typeof Chart === "undefined"){
+    wrap.innerHTML = '<p style="font-size:12px;color:var(--muted);padding:20px 0;text-align:center;">Graphique indisponible (connexion internet requise).</p>';
+    return;
+  }
+  const d = computeBesChartData();
+  if(!d){
+    wrap.innerHTML = '<p class="bes-empty">Ajoute au moins un relevé de valeur pour voir la progression.</p>';
+    return;
+  }
+  wrap.innerHTML = '<canvas id="bes-chart"></canvas>';
+  const ctx = document.getElementById("bes-chart");
+  if(!ctx) return;
+  try{
+    if(state.besChart) state.besChart.destroy();
+    state.besChart = new Chart(ctx, {
+      type:"line",
+      data:{ labels: d.labels, datasets:[
+        {label:"Investi", data:d.invested, borderColor:"#78716c", borderWidth:2, pointRadius:2, tension:.25},
+        {label:"Valeur", data:d.value, borderColor:"#2563eb", backgroundColor:"#2563eb33", fill:true, borderWidth:2.5, pointRadius:3, tension:.25},
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>fmtTL(c.raw)}}},
+        scales:{
+          x:{ticks:{color:"#78716c",font:{size:10}}, grid:{display:false}},
+          y:{ticks:{color:"#78716c",font:{size:10}}, grid:{color:"#292524"}}
+        }
+      }
+    });
+  }catch(err){
+    wrap.innerHTML = '<p style="font-size:12px;color:var(--loss);padding:20px 0;text-align:center;">Erreur d\'affichage du graphique.</p>';
+  }
+}
+
 function render(){
   const el = document.getElementById("content");
   if(state.tab==="dashboard") el.innerHTML = renderDashboard();
   if(state.tab==="add") el.innerHTML = renderAdd();
   if(state.tab==="history") el.innerHTML = renderHistory();
   if(state.tab==="goal") el.innerHTML = renderGoal();
-  if(state.tab==="bes") el.innerHTML = renderBes();
+  if(state.tab==="bes-resume") el.innerHTML = renderBesResume();
+  if(state.tab==="bes-versements") el.innerHTML = renderBesVersements();
+  if(state.tab==="bes-reglages") el.innerHTML = renderBesReglages();
 
   document.querySelectorAll(".navbtn").forEach(b=>{
+    b.style.display = b.dataset.section===state.section ? "flex" : "none";
     b.classList.toggle("active", b.dataset.tab===state.tab);
   });
+  document.querySelectorAll("[data-section]").forEach(b=>{
+    if(b.classList.contains("navbtn")) return;
+    b.classList.toggle("active", b.dataset.section===state.section);
+  });
+  const priceBlock = document.querySelector(".price-block");
+  const priceErr = document.getElementById("price-err");
+  if(priceBlock){ priceBlock.style.display = state.section==="or" ? "flex" : "none"; }
+  if(priceErr){ priceErr.style.display = state.section==="or" ? "block" : "none"; }
+
+  document.body.classList.toggle("bes-mode", state.section==="bes");
 
   attachHandlers();
   if(state.tab==="dashboard") drawChart();
+  if(state.tab==="bes-resume") drawBesChart();
 }
 
 function renderDashboard(){
@@ -383,36 +519,45 @@ function renderDashboard(){
   }
   const isGain = s.gain>=0;
   return `
-    <div class="grid2">
-      <div class="card"><p class="lbl">Investi</p><p class="val serif">${fmtEUR(s.totalInvested)}</p></div>
-      <div class="card hl"><p class="lbl">Valeur actuelle</p><p class="val serif">${fmtEUR(s.currentValue)}</p></div>
-      <div class="card"><p class="lbl">Or détenu</p><p class="val serif">${fmtG(s.totalGrams)}</p></div>
-      <div class="card"><p class="lbl">PRU</p><p class="val serif">${s.avgPrice?fmtEUR(s.avgPrice)+"/g":"—"}</p></div>
-    </div>
-    <div class="gainbox ${isGain?'up':'down'}">
-      <div class="row">
-        <div>
-          <p class="lbl">Gain / Perte latent (cours spot)</p>
-          <p class="amt serif" style="color:${isGain?'var(--gain)':'var(--loss)'}">
-            ${s.gain==null?"—":(s.gain>=0?"+":"")+fmtEUR(s.gain)}
-          </p>
-        </div>
-        <div class="pill ${isGain?'up':'down'}">${s.gainPct==null?"—":(s.gainPct>=0?"+":"")+s.gainPct.toFixed(1)+"%"}</div>
+    <div class="stat-card">
+      <div class="stat-row">
+        <p class="lbl">Investi</p>
+        <p class="val-tl" style="font-size:17px;">${fmtEUR(s.totalInvested)}</p>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Valeur actuelle</p>
+        <p class="val-tl" style="font-size:17px;color:var(--accent);">${fmtEUR(s.currentValue)}</p>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Or détenu</p>
+        <p class="val-tl" style="font-size:17px;">${fmtG(s.totalGrams)}</p>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Prix de revient moyen</p>
+        <p class="val-tl" style="font-size:17px;">${s.avgPrice?fmtEUR(s.avgPrice)+"/g":"—"}</p>
       </div>
     </div>
 
-    <div class="panel">
-      <div class="row">
+    <div class="stat-card" style="margin-top:12px;">
+      <div class="stat-row">
+        <p class="lbl">Gain / perte (cours spot)</p>
         <div>
-          <p class="lbl">Valeur de revente estimée</p>
-          <p class="val serif" style="font-size:20px;margin-top:2px;">${fmtEUR(s.resaleValue)}</p>
-          <p style="font-size:11px;color:var(--muted);margin:4px 0 0;">
-            si tu revendais aujourd'hui (spread ${s.spreadPct}% appliqué)
+          <p class="val-tl" style="color:${isGain?'var(--gain)':'var(--loss)'};">
+            ${s.gain==null?"—":(s.gain>=0?"+":"")+fmtEUR(s.gain)}
+            <span style="font-size:11px;font-family:sans-serif;color:var(--muted);">${s.gainPct==null?"":` (${s.gainPct>=0?"+":""}${s.gainPct.toFixed(1)}%)`}</span>
           </p>
         </div>
-        <div class="pill ${s.resaleGain>=0?'up':'down'}">${s.resaleGainPct==null?"—":(s.resaleGainPct>=0?"+":"")+s.resaleGainPct.toFixed(1)+"%"}</div>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Revente estimée (spread ${s.spreadPct}%)</p>
+        <div>
+          <p class="val-tl">${fmtEUR(s.resaleValue)}
+            <span style="font-size:11px;font-family:sans-serif;color:var(--muted);">${s.resaleGainPct==null?"":` (${s.resaleGainPct>=0?"+":""}${s.resaleGainPct.toFixed(1)}%)`}</span>
+          </p>
+        </div>
       </div>
     </div>
+
     <div class="panel">
       <p class="lbl">Évolution du portefeuille</p>
       <div id="chart-wrap"><canvas id="chart"></canvas></div>
@@ -557,47 +702,97 @@ function renderHistory(){
   }).join("");
 }
 
-function renderBes(){
+function besFilterSeg(){
+  return `
+    <div class="seg">
+      <button data-bes-filter="foyer" class="${state.besFilter==='foyer'?'active':''}">Foyer (Cumul)</button>
+      <button data-bes-filter="Murat" class="${state.besFilter==='Murat'?'active':''}">Murat</button>
+      <button data-bes-filter="Esra" class="${state.besFilter==='Esra'?'active':''}">Esra</button>
+    </div>
+  `;
+}
+
+function renderBesResume(){
+  const s = computeBesStats();
+  const g = computeGlobalBilan();
+
+  return `
+    <h2 class="sec serif">BES — Épargne retraite</h2>
+    ${besFilterSeg()}
+
+    <div class="stat-card">
+      <div class="stat-row">
+        <p class="lbl">Total investi</p>
+        <div>
+          <p class="val-tl">${fmtTL(s.totalTL)}</p>
+          <p class="val-eur">${s.rate ? fmtEUR(s.totalEUR) : "—"}</p>
+        </div>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Valeur actuelle</p>
+        <div>
+          <p class="val-tl">${s.currentTL ? fmtTL(s.currentTL) : "—"}</p>
+          <p class="val-eur">${s.currentEUR!=null ? fmtEUR(s.currentEUR) : "—"}</p>
+        </div>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Bénéfice net</p>
+        <div>
+          <p class="val-tl" style="color:${s.gainTL>=0?'var(--gain)':'var(--loss)'};">
+            ${s.gainTL==null?"—":(s.gainTL>=0?"+":"")+fmtTL(s.gainTL)}
+            ${s.gainPct!=null ? `<span style="font-size:11px;font-family:sans-serif;color:var(--muted);"> (${s.gainPct>=0?"+":""}${s.gainPct.toFixed(1)}%)</span>` : ""}
+          </p>
+          <p class="val-eur">${s.gainEUR!=null ? (s.gainEUR>=0?"+":"")+fmtEUR(s.gainEUR) : "—"}</p>
+        </div>
+      </div>
+    </div>
+    ${!s.rate ? '<p style="font-size:11px;color:var(--muted);margin-top:10px;">Ajoute un taux EUR/TRY dans Réglages pour voir les équivalents €.</p>' : ''}
+
+    <div class="panel" style="margin-top:16px;">
+      <p class="lbl">Progression</p>
+      <div id="bes-chart-wrap" style="width:100%;height:190px;position:relative;"></div>
+      <div class="legend">
+        <span><span class="dot" style="background:#78716c"></span>Investi</span>
+        <span><span class="dot" style="background:#2563eb"></span>Valeur</span>
+      </div>
+    </div>
+
+    <h2 class="sec serif" style="margin-top:26px;font-size:16px;">Bilan global — Or + BES</h2>
+    <div class="stat-card">
+      <div class="stat-row">
+        <p class="lbl">Total investi</p>
+        <div>
+          <p class="val-tl">${fmtTL(g.totalInvestedTL)}</p>
+          <p class="val-eur">${fmtEUR(g.totalInvestedEUR)}</p>
+        </div>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Valeur actuelle</p>
+        <div>
+          <p class="val-tl">${fmtTL(g.totalValueTL)}</p>
+          <p class="val-eur">${fmtEUR(g.totalValueEUR)}</p>
+        </div>
+      </div>
+      <div class="stat-row">
+        <p class="lbl">Bénéfice total</p>
+        <div>
+          <p class="val-tl" style="color:${g.totalGainTL>=0?'var(--gain)':'var(--loss)'};">
+            ${g.totalGainTL>=0?"+":""}${fmtTL(g.totalGainTL)}
+            ${g.totalGainPct!=null?`<span style="font-size:11px;font-family:sans-serif;color:var(--muted);"> (${g.totalGainPct>=0?"+":""}${g.totalGainPct.toFixed(1)}%)</span>`:""}
+          </p>
+          <p class="val-eur" style="color:${g.totalGainEUR>=0?'var(--gain)':'var(--loss)'};">${g.totalGainEUR>=0?"+":""}${fmtEUR(g.totalGainEUR)}</p>
+        </div>
+      </div>
+    </div>
+    ${!g.hasRate ? '<p style="font-size:11px;color:var(--muted);margin-top:10px;">Le taux EUR/TRY (Réglages) manque pour convertir la part or en TL ici.</p>' : ''}
+  `;
+}
+
+function renderBesVersements(){
   const s = computeBesStats();
   const filterLabel = state.besFilter==="foyer" ? "Foyer (Cumul)" : state.besFilter;
   const editingPayment = state.besEditPaymentId ? state.besPayments.find(p=>p.id===state.besEditPaymentId) : null;
   const editingSnapshot = state.besEditSnapshotId ? state.besSnapshots.find(sn=>sn.id===state.besEditSnapshotId) : null;
-
-  const kpis = `
-    <div class="kpi-row">
-      <div class="kpi-card">
-        <p class="lbl">Total investi</p>
-        <p class="val-tl">${fmtTL(s.totalTL)}</p>
-        <p class="val-eur">${s.rate ? fmtEUR(s.totalEUR) : "renseignez un taux EUR/TRY pour voir l'équivalent €"}</p>
-      </div>
-      <div class="kpi-card">
-        <p class="lbl">Valeur actuelle du portefeuille</p>
-        <p class="val-tl">${s.currentTL ? fmtTL(s.currentTL) : "—"}</p>
-        <p class="val-eur">${s.currentEUR!=null ? fmtEUR(s.currentEUR) : (s.currentTL ? "renseignez un taux EUR/TRY" : "aucun relevé enregistré")}</p>
-      </div>
-      <div class="kpi-card" style="border-color:${s.gainTL>=0?'#065f4699':'#7f1d1d99'};">
-        <p class="lbl">Bénéfice net</p>
-        <p class="val-tl" style="color:${s.gainTL>=0?'var(--gain)':'var(--loss)'};">
-          ${s.gainTL==null?"—":(s.gainTL>=0?"+":"")+fmtTL(s.gainTL)}
-          ${s.gainPct!=null ? `<span style="font-size:12px;font-family:sans-serif;color:var(--muted);"> (${s.gainPct>=0?"+":""}${s.gainPct.toFixed(1)}%)</span>` : ""}
-        </p>
-        <p class="val-eur">${s.gainEUR!=null ? (s.gainEUR>=0?"+":"")+fmtEUR(s.gainEUR) : ""}</p>
-      </div>
-    </div>
-  `;
-
-  const rateBox = `
-    <div class="panel">
-      <p class="lbl" style="margin-bottom:8px;">Taux de change EUR/TRY actuel (manuel)</p>
-      <div class="row" style="gap:8px;">
-        <input type="number" inputmode="decimal" step="any" id="bes-rate-input" placeholder="ex: 48.20" value="${state.besRate}" style="flex:1;" />
-        <button class="icon" id="bes-rate-fetch" title="Essayer de récupérer le taux du jour" style="width:44px;height:44px;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-      </div>
-      <p style="font-size:11px;color:var(--muted);margin:8px 0 0;">Utilisé pour convertir les valeurs TL en € dans cette page. Ajuste-le librement.</p>
-    </div>
-  `;
 
   const rows = s.rows;
   const table = rows.length ? `
@@ -655,18 +850,10 @@ function renderBes(){
   ` : `<p class="bes-empty">Aucun relevé de valeur enregistré.</p>`;
 
   return `
-    <h2 class="sec serif">BES — Épargne retraite</h2>
+    <h2 class="sec serif">Versements</h2>
+    ${besFilterSeg()}
 
-    <div class="seg">
-      <button data-bes-filter="foyer" class="${state.besFilter==='foyer'?'active':''}">Foyer (Cumul)</button>
-      <button data-bes-filter="Murat" class="${state.besFilter==='Murat'?'active':''}">Murat</button>
-      <button data-bes-filter="Esra" class="${state.besFilter==='Esra'?'active':''}">Esra</button>
-    </div>
-
-    ${kpis}
-    ${rateBox}
-
-    <div class="row" style="gap:8px;margin-top:16px;">
+    <div class="row" style="gap:8px;margin-bottom:16px;">
       <button class="btn ghost" id="bes-toggle-payment" style="margin-top:0;flex:1;">+ Versement</button>
       <button class="btn ghost" id="bes-toggle-snapshot" style="margin-top:0;flex:1;">+ Relevé valeur</button>
     </div>
@@ -692,7 +879,7 @@ function renderBes(){
       </label>
       <div class="row" style="gap:8px;">
         <button class="btn" id="bp-submit" style="flex:1;">${editingPayment?'Mettre à jour le versement':'Enregistrer le versement'}</button>
-        ${editingPayment?'<button class="btn ghost ' + '" id="bp-cancel" style="margin-top:0;width:auto;padding:13px 18px;">Annuler</button>':''}
+        ${editingPayment?'<button class="btn ghost" id="bp-cancel" style="margin-top:0;width:auto;padding:13px 18px;">Annuler</button>':''}
       </div>
     </div>
 
@@ -724,44 +911,30 @@ function renderBes(){
 
     <h2 class="sec serif" style="margin-top:20px;font-size:16px;">Derniers relevés de valeur</h2>
     ${snapshotList}
+  `;
+}
 
-    <h2 class="sec serif" style="margin-top:24px;">Simulateur d'injection</h2>
+function renderBesReglages(){
+  return `
+    <h2 class="sec serif">Réglages BES</h2>
+
+    <div class="panel" style="margin-top:0;">
+      <p class="lbl" style="margin-bottom:8px;">Taux de change EUR/TRY actuel (manuel)</p>
+      <div class="row" style="gap:8px;">
+        <input type="number" inputmode="decimal" step="any" id="bes-rate-input" placeholder="ex: 48.20" value="${state.besRate}" style="flex:1;" />
+        <button class="icon" id="bes-rate-fetch" title="Essayer de récupérer le taux du jour" style="width:44px;height:44px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin:8px 0 0;">Utilisé pour convertir les valeurs TL en € partout dans l'onglet BES. Ajuste-le librement.</p>
+    </div>
+
+    <h2 class="sec serif" style="margin-top:24px;font-size:16px;">Simulateur d'injection</h2>
     <label class="field">Montant à injecter (€)
       <input type="number" inputmode="decimal" step="any" id="sim-amount" placeholder="5000" />
     </label>
     <button class="btn ghost" id="sim-calc" style="margin-top:0;">Calculer la répartition</button>
     <div id="sim-result"></div>
-
-    ${(()=>{ const g = computeGlobalBilan(); return `
-    <h2 class="sec serif" style="margin-top:28px;">Bilan global — Or + BES</h2>
-    <div class="panel" style="border-color:var(--gold-dim);">
-      <div class="row" style="align-items:flex-start;">
-        <div>
-          <p class="lbl">Total investi</p>
-          <p class="val-tl" style="font-size:19px;margin-top:3px;">${fmtTL(g.totalInvestedTL)}</p>
-          <p class="val-eur">${fmtEUR(g.totalInvestedEUR)}</p>
-        </div>
-      </div>
-      <div class="row" style="align-items:flex-start;margin-top:14px;">
-        <div>
-          <p class="lbl">Valeur actuelle</p>
-          <p class="val-tl" style="font-size:19px;margin-top:3px;">${fmtTL(g.totalValueTL)}</p>
-          <p class="val-eur">${fmtEUR(g.totalValueEUR)}</p>
-        </div>
-      </div>
-      <div class="row" style="align-items:flex-start;margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
-        <div>
-          <p class="lbl">Bénéfice total</p>
-          <p class="val-tl" style="font-size:20px;margin-top:3px;color:${g.totalGainTL>=0?'var(--gain)':'var(--loss)'};">
-            ${g.totalGainTL>=0?"+":""}${fmtTL(g.totalGainTL)}
-            ${g.totalGainPct!=null?`<span style="font-size:12px;font-family:sans-serif;color:var(--muted);"> (${g.totalGainPct>=0?"+":""}${g.totalGainPct.toFixed(1)}%)</span>`:""}
-          </p>
-          <p class="val-eur" style="color:${g.totalGainEUR>=0?'var(--gain)':'var(--loss)'};">${g.totalGainEUR>=0?"+":""}${fmtEUR(g.totalGainEUR)}</p>
-        </div>
-      </div>
-      ${!g.hasRate ? '<p style="font-size:11px;color:var(--muted);margin-top:12px;">Renseigne un taux EUR/TRY ci-dessus pour que la part or soit aussi convertie en TL dans ce bilan.</p>' : ''}
-    </div>
-    `; })()}
   `;
 }
 
@@ -806,6 +979,16 @@ function renderGoal(){
     <p style="font-size:11px;color:var(--muted);margin-top:8px;">
       À utiliser si une mise à jour ne s'affiche pas après un changement sur GitHub. Sans danger : tes versements et objectifs ne sont pas touchés.
     </p>
+
+    <h2 class="sec serif" style="margin-top:24px;font-size:16px;">Sauvegarde</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">
+      Tes données (or + BES) ne sont stockées que sur cet appareil. Sauvegarde-les régulièrement pour ne rien perdre si tu changes de téléphone.
+    </p>
+    <div class="row" style="gap:8px;">
+      <button class="btn ghost" id="export-data-btn" style="margin-top:0;flex:1;">💾 Sauvegarder (Drive)</button>
+      <button class="btn ghost" id="import-data-btn" style="margin-top:0;flex:1;">📂 Importer</button>
+    </div>
+    <p id="export-status" style="font-size:11px;color:var(--muted);margin-top:8px;"></p>
   `;
 }
 
@@ -902,6 +1085,11 @@ function attachHandlers(){
     }catch(e){ /* on recharge quand même */ }
     location.reload(true);
   };
+
+  const exportBtn = document.getElementById("export-data-btn");
+  if(exportBtn) exportBtn.onclick = exportData;
+  const importBtn = document.getElementById("import-data-btn");
+  if(importBtn) importBtn.onclick = ()=> document.getElementById("import-file-input").click();
 
   // ---------- BES ----------
   document.querySelectorAll("[data-bes-filter]").forEach(b=>{
@@ -1030,6 +1218,13 @@ function attachHandlers(){
 document.querySelectorAll(".navbtn").forEach(b=>{
   b.onclick = ()=>{ state.tab=b.dataset.tab; render(); };
 });
+document.querySelectorAll(".section-switch button").forEach(b=>{
+  b.onclick = ()=>{
+    state.section = b.dataset.section;
+    state.tab = SECTION_TABS[state.section];
+    render();
+  };
+});
 document.getElementById("refresh-btn").onclick = fetchPrice;
 
 if("serviceWorker" in navigator){
@@ -1054,6 +1249,59 @@ document.getElementById("theme-btn").onclick = ()=>{
   localStorage.setItem("dca_theme_v1", state.theme);
   applyTheme();
   if(state.tab==="dashboard") drawChart();
+};
+
+async function exportData(){
+  const statusEl = document.getElementById("export-status");
+  const data = {
+    entries: state.entries, goal: state.goal, spread: state.spread, theme: state.theme,
+    besPayments: state.besPayments, besSnapshots: state.besSnapshots, besRate: state.besRate,
+    exportedAt: new Date().toISOString()
+  };
+  const json = JSON.stringify(data, null, 2);
+  const filename = `dca-or-bes-sauvegarde-${todayISO()}.json`;
+  const blob = new Blob([json], {type:"application/json"});
+
+  try{
+    const file = new File([blob], filename, {type:"application/json"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Sauvegarde DCA Or & BES"});
+      if(statusEl) statusEl.textContent = "Choisis Drive dans la liste de partage pour l'y enregistrer.";
+      return;
+    }
+  }catch(e){
+    // annulé par l'utilisateur ou API indisponible : on bascule sur le téléchargement classique
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  if(statusEl) statusEl.textContent = "Fichier téléchargé — enregistre-le ensuite dans Drive depuis tes Téléchargements.";
+}
+
+async function importDataFromFile(file){
+  const statusEl = document.getElementById("export-status");
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(Array.isArray(data.entries)){ state.entries = data.entries; saveEntries(); }
+    if(data.goal){ state.goal = data.goal; saveGoal(); }
+    if(data.spread){ state.spread = data.spread; localStorage.setItem("dca_spread_v1", state.spread); }
+    if(Array.isArray(data.besPayments)){ state.besPayments = data.besPayments; saveBesPayments(); }
+    if(Array.isArray(data.besSnapshots)){ state.besSnapshots = data.besSnapshots; saveBesSnapshots(); }
+    if(data.besRate){ state.besRate = data.besRate; saveBesRate(); }
+    render();
+    if(statusEl) statusEl.textContent = "Sauvegarde importée avec succès.";
+  }catch(e){
+    if(statusEl) statusEl.textContent = "Fichier invalide ou corrompu, import annulé.";
+  }
+}
+
+document.getElementById("import-file-input").onchange = (e)=>{
+  const file = e.target.files[0];
+  if(file) importDataFromFile(file);
+  e.target.value = "";
 };
 
 applyTheme();
